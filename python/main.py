@@ -1,10 +1,11 @@
 import os
-
+import redis
+import hiredis
 from telegram import ForceReply, Update
 from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
 
 def set_env():
-    file = open(".env", "r")
+    file = open("./.env", "r")
 
     for line in file:
         entry = line.split("=")
@@ -12,7 +13,11 @@ def set_env():
             continue
         os.environ[entry[0]] = (entry[1])[:-1]
 
+set_env()
 
+
+redisDB = redis.Redis(host ="localhost", port=6379, decode_responses=True,
+                    password=os.environ["REDIS_PASSWORD"])
 
 async def command_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass
@@ -20,39 +25,22 @@ async def command_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if update is None or update.message is None:
         return
-    await update.message.reply_text("Hi !")
-
-
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update is None or update.message is None:
+    user = update.message.from_user
+    if user is None:
         return
-    await update.message.reply_text("Help!")
+    else:
+        redisDB.set(user.username.__str__(), update.message.chat_id)
 
-
-async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update is None or update.message is None or update.message.text is None:
-        return
-    await update.message.reply_text(update.message.text)
+    await update.message.reply_text("Your account has been registered with PottySense! \nPlease return to the portal.")
 
 
 def main() -> None:
     """Start the bot."""
     TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-    print("token", TELEGRAM_BOT_TOKEN)
-    # Create the Application and pass it your bot's token.
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-
-    # on different commands - answer in Telegram
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("help", help_command))
-
-    # on non command i.e message - echo the message on Telegram
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
-
-    # Run the bot until the user presses Ctrl-C
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
-    set_env()
     main()

@@ -8,7 +8,7 @@ CREATE TABLE TOfficers (
     telegram TEXT DEFAULT '',
     type TEXT NOT NULL DEFAULT "user"
 );
-
+/*
 DROP TABLE IF EXISTS Groups;
 CREATE TABLE Groups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,7 +22,7 @@ CREATE TABLE Subscriptions (
     FOREIGN KEY (to_id) REFERENCES TOfficers (id),
     FOREIGN KEY (group_id) REFERENCES Groups (id)
 );
-
+*/
 DROP TABLE IF EXISTS Clients;
 CREATE TABLE Clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -37,6 +37,12 @@ CREATE TABLE Clients (
     FOREIGN KEY (to_id) REFERENCES TOfficers (id)
 );
 
-INSERT INTO Clients (first_name, last_name, gender)
-VALUES ('john', 'doe', 'male'),
-('jane', 'doe', 'female');
+DROP TABLE IF EXISTS Watch;
+CREATE TABLE Watch (
+    to_id INTEGER,
+    client_id INTEGER,
+    FOREIGN KEY (to_id) REFERENCES TOfficers (id),
+    FOREIGN KEY (client_id) REFERENCES Clients (id)
+);
+
+

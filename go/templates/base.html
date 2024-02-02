@@ -10,17 +10,17 @@
     <meta name="description" content="PottySense Portal">
 
     <link rel="shortcut icon" href="#">
+    <link rel="stylesheet" href="/static/styles.css">
     <script src="/static/htmx.min.js"></script>
-
 </head>
 
-<body id="body">
+<body>
     <h1 id="logo">PottySense</h1>
+
     <div id="tab-panel" hx-target="this" hx-swap="outerHTML" hx-get="{{ index .hxGet }}" hx-trigger="load"
         hx-replace-url="{{ index .hxReplaceUrl }}">
     </div>
 
-    <h3> end of body</h3>
 </body>
 
 <footer>

@@ -1,0 +1,64 @@
+body {
+    flex: 1;
+    background-color: #D3D3D3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+#logo {
+    font-family: monospace;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+#content-header {
+    font-weight: bold;
+    font-family: monospace;
+    text-align: center;
+}
+
+#login-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+
+.login-form-field {
+    font-size: 1.25rem;
+    margin: 0.5rem;
+    padding: 0.2rem;
+}
+
+#login-button {
+    font-size: 1.125rem;
+    width: 50%;
+    margin: 0.5rem;
+    padding: 0.2rem;
+}
+
+#log-user {
+    font-family: monospace;
+    font-weight: 500;
+    font-size: 1.5rem;
+}
+
+#tab-list {
+    width: 90%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.main-tab {
+    margin: 0rem 0.5rem;
+}
+
+#current-search {
+    margin: 0.5rem;
+    width: 300px;
+}

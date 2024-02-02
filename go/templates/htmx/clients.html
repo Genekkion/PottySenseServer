@@ -1,4 +1,9 @@
 <div id="tab-panel" role="tabpanel">
+
+    <input id="current-search" name="search"
+    type="search" placeholder="Search for client" hx-post="/htmx/clients/search"
+    hx-headers='{ "X-CSRF-Token": "{{ .csrfToken }}" }'
+        hx-target="#search-results" hx-swap="innerHTML" hx-trigger="input changed delay:500ms, search, load">
     <table>
         <thead>
             <tr>
@@ -13,21 +18,7 @@
             </tr>
         </thead>
 
-        <tbody>
-            {{ range .clients }}
-
-            <tr>
-                <th>{{ .Id }}</th>
-                <th>{{ .FirstName }}</th>
-                <th>{{ .LastName }}</th>
-                <th>{{ .Gender }}</th>
-                <th>{{ .Urination }}</th>
-                <th>{{ .Defecation }}</th>
-                <th>{{ .LastRecord }}</th>
-                <th>{{ .ToId }}</th>
-            </tr>
-
-            {{ end }}
+        <tbody id="search-results" class="clients-table">
 
         </tbody>
     </table>

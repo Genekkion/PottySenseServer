@@ -89,7 +89,8 @@ func initServer(listenAddr string, dbStorage *SqliteStorage,
 	router.HandleFunc("/htmx/current", server.htmxCurrent)
 
 	router.HandleFunc("/htmx/clients", server.htmxClients)
-
+	router.HandleFunc("/htmx/clients/search", server.htmxClientEntry)
+	router.HandleFunc("/htmx/clients/current", server.htmxCurrentClients)
 	log.Printf("Server running on: http://localhost%s\n", server.listenAddr)
 	return server
 }

@@ -1,5 +1,4 @@
-<h2>Dashboard</h2>
-<h3>USER: {{ index .username }}</h3>
+<h3 id="log-user">Logged in as: {{ index .username }}</h3>
 
 <div id="tab-list" role="tablist" hx-target="#tab-panel" _="on htmx:afterOnLoad set @aria-selected of 
         <[aria-selected=true]/> to false tell the 
@@ -17,7 +16,7 @@
         hx-swap="outerHTML">account
     </button>
 
-    <form action="/api/logout" method="post">
+    <form class="main-tab" action="/logout" method="post">
         {{ index .csrfField }}
         <button id="logout-button" class="logout-button" type="submit">logout
             <i class="fa-solid fa-right-from-bracket main-tab-icon"></i>
