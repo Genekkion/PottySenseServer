@@ -11,9 +11,15 @@
     <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/clients"
         hx-swap="outerHTML">clients
     </button>
-
+    {{ if eq .userType "admin" }}
+    <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/accounts"
+        hx-swap="outerHTML">accounts
+    </button>
+    {{ else }}
+    <h3>unauth</h3>
+    {{ end }}
     <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/settings"
-        hx-swap="outerHTML">account
+        hx-swap="outerHTML">settings
     </button>
 
     <form class="main-tab" action="/logout" method="post">

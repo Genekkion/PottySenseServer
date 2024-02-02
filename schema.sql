@@ -8,21 +8,7 @@ CREATE TABLE TOfficers (
     telegram TEXT DEFAULT '',
     type TEXT NOT NULL DEFAULT "user"
 );
-/*
-DROP TABLE IF EXISTS Groups;
-CREATE TABLE Groups (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL
-);
 
-DROP TABLE IF EXISTS Subscriptions;
-CREATE TABLE Subscriptions (
-    to_id INTEGER,
-    group_id INTEGER,
-    FOREIGN KEY (to_id) REFERENCES TOfficers (id),
-    FOREIGN KEY (group_id) REFERENCES Groups (id)
-);
-*/
 DROP TABLE IF EXISTS Clients;
 CREATE TABLE Clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,10 +17,7 @@ CREATE TABLE Clients (
     gender TEXT NOT NULL,
     urination INTEGER DEFAULT 300,
     defecation INTEGER DEFAULT 600,
-    last_record DATETIME DEFAULT current_timestamp,
-
-    to_id INTEGER DEFAULT -1,
-    FOREIGN KEY (to_id) REFERENCES TOfficers (id)
+    last_record DATETIME DEFAULT current_timestamp
 );
 
 DROP TABLE IF EXISTS Watch;

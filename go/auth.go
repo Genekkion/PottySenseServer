@@ -22,7 +22,8 @@ func (server *Server) isValidSession(writer http.ResponseWriter,
 }
 
 func (server *Server) createSession(writer http.ResponseWriter,
-	request *http.Request, id int, username string) error {
+	request *http.Request, id int, username string,
+	telegram string, userType string) error {
 	store := server.redisStorage.store
 	session, err := store.Get(request, "PS-cookie")
 
@@ -34,6 +35,8 @@ func (server *Server) createSession(writer http.ResponseWriter,
 
 	session.Values["id"] = id
 	session.Values["username"] = username
+	session.Values["telegram"] = telegram
+	session.Values["userType"] = userType
 	session.Options.SameSite = http.SameSiteStrictMode
 
 	err = session.Save(request, writer)
@@ -110,21 +113,22 @@ func loginApi(writer http.ResponseWriter,
 	password := saltPassword(request.FormValue("password"))
 
 	var id int
+	var telegram string
+	var userType string
 	var passwordHash string
 	err := server.dbStorage.db.QueryRow(
-		"SELECT id, password FROM TOfficers WHERE username = $1",
-		username).Scan(
-		&id, &passwordHash)
+		"SELECT id, password, telegram, type FROM TOfficers WHERE username = $1",
+		username).Scan(&id, &passwordHash, &telegram, &userType)
+
 	if err == sql.ErrNoRows {
 		writeJson(writer, http.StatusUnauthorized,
 			map[string]string{
 				"error": "invalid username",
 			},
 		)
-        return
+		return
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
-
 	if err != nil {
 		writeJson(writer, http.StatusUnauthorized,
 			map[string]string{
@@ -134,7 +138,7 @@ func loginApi(writer http.ResponseWriter,
 		return
 	}
 
-	server.createSession(writer, request, id, username)
+	server.createSession(writer, request, id, username, telegram, userType)
 	http.Redirect(writer, request, "/dashboard", http.StatusSeeOther)
 }
 

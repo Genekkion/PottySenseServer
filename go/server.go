@@ -91,6 +91,12 @@ func initServer(listenAddr string, dbStorage *SqliteStorage,
 	router.HandleFunc("/htmx/clients", server.htmxClients)
 	router.HandleFunc("/htmx/clients/search", server.htmxClientEntry)
 	router.HandleFunc("/htmx/clients/current", server.htmxCurrentClients)
+
+	router.HandleFunc("/htmx/accounts", server.htmxAccounts)
+	router.HandleFunc("/htmx/accounts/search", server.htmxAccountsSearch)
+	router.HandleFunc("/htmx/accounts/{id:[0-9]+}/edit", server.htmxAccountEdit)
+	router.HandleFunc("/htmx/accounts/{id:[0-9]+}/save", server.htmxAccountSave)
+
 	log.Printf("Server running on: http://localhost%s\n", server.listenAddr)
 	return server
 }
