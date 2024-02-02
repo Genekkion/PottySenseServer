@@ -1,0 +1,34 @@
+<div id="tab-panel" role="tabpanel">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>First name</th>
+                <th>Last name</th>
+                <th>Gender</th>
+                <th>Urination</th>
+                <th>Defecation</th>
+                <th>Last record</th>
+                <th>TO ID</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {{ range .clients }}
+
+            <tr>
+                <th>{{ .Id }}</th>
+                <th>{{ .FirstName }}</th>
+                <th>{{ .LastName }}</th>
+                <th>{{ .Gender }}</th>
+                <th>{{ .Urination }}</th>
+                <th>{{ .Defecation }}</th>
+                <th>{{ .LastRecord }}</th>
+                <th>{{ .ToId }}</th>
+            </tr>
+
+            {{ end }}
+
+        </tbody>
+    </table>
+</div>

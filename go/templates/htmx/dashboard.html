@@ -1,0 +1,32 @@
+<h2>Dashboard</h2>
+<h3>USER: {{ index .username }}</h3>
+
+<div id="tab-list" role="tablist" hx-target="#tab-panel" _="on htmx:afterOnLoad set @aria-selected of 
+        <[aria-selected=true]/> to false tell the 
+        target take .selected set @aria-selected to true">
+
+    <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="true" hx-get="/htmx/current"
+        hx-swap="outerHTML">current
+    </button>
+
+    <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/clients"
+        hx-swap="outerHTML">clients
+    </button>
+
+    <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/settings"
+        hx-swap="outerHTML">account
+    </button>
+
+    <form action="/api/logout" method="post">
+        {{ index .csrfField }}
+        <button id="logout-button" class="logout-button" type="submit">logout
+            <i class="fa-solid fa-right-from-bracket main-tab-icon"></i>
+        </button>
+    </form>
+
+</div>
+
+
+
+<div id="tab-panel" role="tabpanel" hx-target="this" hx-get="/htmx/current" hx-swap="outerHTML" hx-trigger="load">
+</div>

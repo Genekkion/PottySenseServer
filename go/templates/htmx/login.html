@@ -1,0 +1,12 @@
+<div id="tab-panel" hx-target="this">
+
+    <h2>Log in</h2>
+
+    <form method="post" action="/login">
+        {{ .csrfField }}
+        <input type="text" name="username" placeholder="username" requried />
+        <input type="password" name="password" placeholder="password" required />
+        <button type="submit">log in</button>
+    </form>
+
+</div>
