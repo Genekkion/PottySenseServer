@@ -19,8 +19,8 @@ func (server *Server) dashboardPage(writer http.ResponseWriter,
 			},
 		)
 		return
-	} else if !server.isValidSession(writer, request) {
-        log.Println("redirecting to index")
+	} else if !server.isValidSession(request) {
+		log.Println("redirecting to index")
 		http.Redirect(writer, request, "/", http.StatusSeeOther)
 		return
 	}

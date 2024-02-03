@@ -1,17 +1,20 @@
 package main
 
 import (
-	"gopkg.in/boj/redistore.v1"
+	"context"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/redis/go-redis/v9"
+	"gopkg.in/boj/redistore.v1"
 )
 
-type RedisStorage struct {
+type RedisSessionStore struct {
 	store *redistore.RediStore
 }
 
-func newRedisStorage() *RedisStorage {
+func newRedisSessionStore() *RedisSessionStore {
 	store, err := redistore.NewRediStore(10, "tcp", ":6379",
 		os.Getenv("REDIS_PASSWORD"), []byte(os.Getenv("REDIS_SECRET")))
 	if err != nil {
@@ -25,11 +28,39 @@ func newRedisStorage() *RedisStorage {
 	store.Options.Secure = os.Getenv("IS_PROD") == "true"
 	log.Println("RedisStorage connected successfully")
 
-	return &RedisStorage{
+	return &RedisSessionStore{
 		store: store,
 	}
 }
 
-func (redisStorage *RedisStorage) close() {
-	redisStorage.store.Close()
+func (redisSessionStore *RedisSessionStore) close() {
+	redisSessionStore.store.Close()
+}
+
+type RedisStorage struct {
+	client *redis.Client
+}
+
+func newRedisStorage() *RedisStorage {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:" + os.Getenv("REDIS_PORT"),
+		Password: os.Getenv("REDIS_PASSWORD"),
+		DB:       0,
+	})
+
+	return &RedisStorage{
+		client: client,
+	}
+}
+
+func (redisClient *RedisStorage) set(key string, value string) error {
+	return redisClient.client.Set(context.Background(), key, value, 0).Err()
+}
+
+func (redisClient *RedisStorage) get(key string) (string, error) {
+	return redisClient.client.Get(context.Background(), key).Result()
+}
+
+func (redisClient *RedisStorage) close(){
+    redisClient.client.Close()
 }

@@ -9,12 +9,10 @@ import (
 	"net/http"
 )
 
-func (server *Server) isValidSession(writer http.ResponseWriter,
-	request *http.Request) bool {
-	store := server.redisStorage.store
+func (server *Server) isValidSession(request *http.Request) bool {
+	store := server.redisSessionStore.store
 	session, err := store.Get(request, "PS-cookie")
 	if err != nil {
-		log.Println("Server.go: isValidSession() - getSession")
 		log.Println(err)
 		return false
 	}
@@ -22,31 +20,29 @@ func (server *Server) isValidSession(writer http.ResponseWriter,
 }
 
 func (server *Server) createSession(writer http.ResponseWriter,
-	request *http.Request, id int, username string,
-	telegram string, userType string) error {
-	store := server.redisStorage.store
+	request *http.Request, to TO) error {
+	store := server.redisSessionStore.store
 	session, err := store.Get(request, "PS-cookie")
 
 	if err != nil {
-		log.Println("Server.go: createSession() - getSession")
 		log.Println(err)
 		return err
 	}
 
-	session.Values["id"] = id
-	session.Values["username"] = username
-	session.Values["telegram"] = telegram
-	session.Values["userType"] = userType
+	session.Values["id"] = to.Id
+	session.Values["username"] = to.Username
+	session.Values["telegram"] = to.Telegram
+	session.Values["userType"] = to.UserType
 	session.Options.SameSite = http.SameSiteStrictMode
 
 	err = session.Save(request, writer)
 	if err != nil {
-		log.Println("Server.go: createSession() - saveSession")
 		log.Println(err)
 		return err
 	}
 	return nil
 }
+
 func toLowerCase(str string) string {
 	var lowerCase string
 	for _, char := range str {
@@ -91,7 +87,7 @@ func loginPage(writer http.ResponseWriter,
 			},
 		)
 		return
-	} else if server.isValidSession(writer, request) {
+	} else if server.isValidSession(request) {
 		log.Println("redirecting to dashboard")
 		http.Redirect(writer, request, "/dashboard", http.StatusSeeOther)
 		return
@@ -138,33 +134,69 @@ func loginApi(writer http.ResponseWriter,
 		return
 	}
 
-	server.createSession(writer, request, id, username, telegram, userType)
+	server.createSession(writer, request,
+		TO{
+			Id:       id,
+			Username: username,
+			Telegram: telegram,
+			UserType: userType,
+		})
 	http.Redirect(writer, request, "/dashboard", http.StatusSeeOther)
 }
 
-func returnError(writer http.ResponseWriter, request *http.Request,
-	err error) {
-	writeJson(writer, http.StatusInternalServerError,
-		map[string]string{
-			"error": err.Error(),
-		},
-	)
-}
-
 func (server *Server) logout(writer http.ResponseWriter, request *http.Request) {
-	store := server.redisStorage.store
+	store := server.redisSessionStore.store
 	session, err := store.Get(request, "PS-cookie")
 
 	if err != nil {
-		returnError(writer, request, err)
+		writeJson(writer, http.StatusInternalServerError,
+			map[string]string{
+				"error": err.Error(),
+			},
+		)
 	}
 
 	session.Options.MaxAge = -1
 
 	err = session.Save(request, writer)
 	if err != nil {
-		returnError(writer, request, err)
+		writeJson(writer, http.StatusInternalServerError,
+			map[string]string{
+				"error": err.Error(),
+			},
+		)
 	}
 
 	http.Redirect(writer, request, "/login", http.StatusSeeOther)
+}
+
+func (server *Server) secureHtmx(writer http.ResponseWriter,
+	request *http.Request) (TO, error) {
+	store := server.redisSessionStore.store
+	session, err := store.Get(request, "PS-cookie")
+	if err != nil {
+		log.Println(err)
+		writeJson(writer, http.StatusInternalServerError,
+			map[string]interface{}{
+				"error": "internal server error",
+			},
+		)
+		return TO{}, err
+	}
+
+	id := session.Values["id"]
+	username := session.Values["username"]
+	userType := session.Values["userType"]
+	telegram := session.Values["telegram"]
+
+	if id == nil || username == nil {
+		http.Redirect(writer, request, "/login", http.StatusSeeOther)
+		return TO{}, nil
+	}
+	return TO{
+		Id:       id.(int),
+		Username: username.(string),
+		Telegram: telegram.(string),
+		UserType: userType.(string),
+	}, nil
 }

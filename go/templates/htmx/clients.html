@@ -1,6 +1,6 @@
 <div id="tab-panel" role="tabpanel">
 
-    <input id="current-search" name="search"
+    <input id="current-search" name="search" class="search-box"
     type="search" placeholder="Search for client" hx-post="/htmx/clients/search"
     hx-headers='{ "X-CSRF-Token": "{{ .csrfToken }}" }'
         hx-target="#search-results" hx-swap="innerHTML" hx-trigger="input changed delay:500ms, search, load">
@@ -8,12 +8,13 @@
         <thead>
             <tr>
                 <th>ID</th>
-                <th>First name</th>
-                <th>Last name</th>
+                <th>First<br>name</th>
+                <th>Last<br>name</th>
                 <th>Gender</th>
                 <th>Urination</th>
                 <th>Defecation</th>
                 <th>Last record</th>
+                <th>Assign</th>
             </tr>
         </thead>
 

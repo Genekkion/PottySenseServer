@@ -1,80 +1,50 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 )
 
-type apiFunc func(http.ResponseWriter, *http.Request) error
-
 type Server struct {
-	listenAddr   string
-	dbStorage    SqliteStorage
-	redisStorage RedisStorage
-	router       *mux.Router
+	listenAddr        string
+	dbStorage         SqliteStorage
+	redisSessionStore RedisSessionStore
+	router            *mux.Router
+	telebotAddr       string
+	redisStorage      RedisStorage
 }
 
-func writeJson(writer http.ResponseWriter, statusCode int, value any) error {
-	writer.WriteHeader(statusCode)
-	writer.Header().Add("Content-Type", "application/json")
-
-	return json.NewEncoder(writer).Encode(value)
-}
-
-func makeHTTPHandleFunc(function apiFunc) http.HandlerFunc {
-	return func(writer http.ResponseWriter, request *http.Request) {
-		if err := function(writer, request); err != nil {
-			writeJson(writer, http.StatusInternalServerError,
-				fmt.Errorf("internal server error"))
-		}
-	}
-}
-
-func (server *Server) template(writer http.ResponseWriter,
-	request *http.Request) error {
-	return nil
-}
-
-func (server *Server) indexHandler(writer http.ResponseWriter,
-	request *http.Request) {
-	var hxGet string
-	var hxReplaceUrl string
-	if server.isValidSession(writer, request) {
-		hxGet = "/htmx/dashboard"
-		hxReplaceUrl = "/dashboard"
-
-	} else {
-		hxGet = "/htmx/login"
-		hxReplaceUrl = "/login"
-	}
-
-	tmpl := template.Must(template.ParseFiles(baseTemplate))
-	tmpl.Execute(writer, map[string]interface{}{
-		csrf.TemplateTag: csrf.TemplateField(request),
-		"hxGet":          hxGet,
-		"hxReplaceUrl":   hxReplaceUrl,
-	})
-}
-
-func initServer(listenAddr string, dbStorage *SqliteStorage,
+func initServer(dbStorage *SqliteStorage, redisSessionStore *RedisSessionStore,
 	redisStorage *RedisStorage) *Server {
+
+	listenAddr := ":" + os.Getenv("PORT")
+	telebotAddr := "https://api.telegram.org/bot" +
+		os.Getenv("TELEGRAM_BOT_TOKEN") + "/sendMessage"
 
 	router := mux.NewRouter()
 	server := &Server{
-		listenAddr:   listenAddr,
-		dbStorage:    *dbStorage,
-		redisStorage: *redisStorage,
-		router:       router,
+		listenAddr:        listenAddr,
+		dbStorage:         *dbStorage,
+		redisSessionStore: *redisSessionStore,
+		router:            router,
+		telebotAddr:       telebotAddr,
 	}
 
-	server.addStaticRoutes()
+	addFileServer(server)
+	addRoutes(server)
+
+	log.Printf("Server running on: http://localhost%s\n", server.listenAddr)
+	return server
+}
+
+func addRoutes(server *Server) {
+	router := server.router
 
 	router.HandleFunc("/", server.indexHandler)
 
@@ -97,8 +67,9 @@ func initServer(listenAddr string, dbStorage *SqliteStorage,
 	router.HandleFunc("/htmx/accounts/{id:[0-9]+}/edit", server.htmxAccountEdit)
 	router.HandleFunc("/htmx/accounts/{id:[0-9]+}/save", server.htmxAccountSave)
 
-	log.Printf("Server running on: http://localhost%s\n", server.listenAddr)
-	return server
+	router.HandleFunc("/htmx/settings", server.htmxSettings)
+	router.HandleFunc("/htmx/settings/details", server.htmxSettingsDetailsSave)
+	router.HandleFunc("/htmx/settings/password", server.htmxSettingsPasswordHandler)
 }
 
 func (server *Server) run() {
@@ -107,3 +78,62 @@ func (server *Server) run() {
 
 	http.ListenAndServe(server.listenAddr, CSRF(server.router))
 }
+
+func writeJson(writer http.ResponseWriter, statusCode int, value any) error {
+	writer.WriteHeader(statusCode)
+	writer.Header().Add("Content-Type", "application/json")
+
+	return json.NewEncoder(writer).Encode(value)
+}
+
+func (server *Server) indexHandler(writer http.ResponseWriter,
+	request *http.Request) {
+	var hxGet string
+	var hxReplaceUrl string
+	if server.isValidSession(request) {
+		hxGet = "/htmx/dashboard"
+		hxReplaceUrl = "/dashboard"
+	} else {
+		hxGet = "/htmx/login"
+		hxReplaceUrl = "/login"
+	}
+
+	tmpl := template.Must(template.ParseFiles(baseTemplate))
+	tmpl.Execute(writer, map[string]interface{}{
+		csrf.TemplateTag: csrf.TemplateField(request),
+		"hxGet":          hxGet,
+		"hxReplaceUrl":   hxReplaceUrl,
+	})
+}
+
+func (server *Server) sendTele(request *http.Request, message string) error {
+	rClient := server.redisStorage
+	session, err := server.redisSessionStore.store.Get(request, "PS-cookie")
+	if err != nil {
+		return err
+	}
+
+	telegram := session.Values["telegram"]
+	chatId, err := rClient.get(telegram.(string))
+	if err != nil {
+		return err
+	}
+	body, err := json.Marshal(
+		map[string]string{
+			"chat_id": chatId,
+			"text":    message,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	response := bytes.NewBuffer(body)
+	_, err = http.Post(server.telebotAddr, "application/json", response)
+	return err
+}
+
+func addFileServer(server *Server) {
+	fileServer := http.FileServer(http.Dir("./static"))
+	server.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fileServer))
+}
+

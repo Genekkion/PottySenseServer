@@ -31,8 +31,8 @@ func parseArgs(dbStorage *SqliteStorage) int {
 func main() {
 	setEnv()
 
-	redisStorage := newRedisStorage()
-	defer redisStorage.close()
+	redisSessionStore := newRedisSessionStore()
+	defer redisSessionStore.close()
 
 	dbStorage := newSqliteStorage()
 	defer dbStorage.close()
@@ -41,6 +41,9 @@ func main() {
 		return
 	}
 
-	server := initServer(":3000", dbStorage, redisStorage)
-    server.run()
+    redisStorage := newRedisStorage()
+    defer redisStorage.close()
+
+	server := initServer(dbStorage, redisSessionStore, redisStorage)
+	server.run()
 }
