@@ -5,17 +5,17 @@ type Client struct {
 	FirstName  string
 	LastName   string
 	Gender     string
-	Urination  int
-	Defecation int
+	Urination  string
+	Defecation string
 	LastRecord string
-	ToId       int
 }
 
 type TO struct {
-	Id        int
-	Username  string
-	FirstName string
-	LastName  string
-	Telegram  string
-	UserType  string
+	Id               int
+	Username         string
+	FirstName        string
+	LastName         string
+	Telegram         string
+    TelegramVerified int
+	UserType         string
 }

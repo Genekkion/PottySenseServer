@@ -1,6 +1,6 @@
 import os
 import redis
-from telegram import  Update
+from telegram import Update
 import telegram
 from telegram.ext import Application, CommandHandler, ContextTypes
 import sqlite3
@@ -27,23 +27,29 @@ db = sqlite3.connect(os.environ["DB_PATH"])
 cursor = db.cursor()
 
 
-async def command_template(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
-
-
 def authorized(func):
     @functools.wraps(func)
-    async def wrapper(update, context):
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if (update is None or update.message is None or
                 update.message.from_user is None):
             await update.message.reply_text(
-                "Error retrieving user data\! \nPlease try again later.")
+                "Error retrieving user data\! \nPlease try again later\.")
+            return
+        username = update.message.from_user.username
+
+        res = cursor.execute(
+            """SELECT id FROM Tofficers
+            WHERE telegram = ?
+            """, (username,)).fetchall()
+        if len(res) == 0:
+            await update.message.reply_text(
+                text='Unauthorized user\.',
+                parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
             return
 
-        chatId = redisDB.get(update.message.from_user.username.__str__())
+        chatId = redisDB.get(username)
         if chatId is None:
-            await update.message.reply_text("Unauthorized user\.")
-            return
+            redisDB.set(name=username, value=update.message.chat_id)
 
         return await func(update, context)
 
@@ -102,7 +108,7 @@ def parse_int(s: str) -> int:
         return 0
 
 
-@authorized
+@ authorized
 async def search(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = (update.message.text.split(sep=" "))[1:]
     if args[0].lower() == "id":
@@ -119,7 +125,7 @@ def parse_time(seconds: int) -> str:
     return str(seconds // 60) + " min"
 
 
-@authorized
+@ authorized
 async def get_client(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = [parse_int(s) for s in (update.message.text.split(sep=" "))[1:]]
     for id in args:
@@ -134,7 +140,8 @@ async def get_client(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
                 text="No client found with id: \["+str(id)+"\]\n",
                 parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
             continue
-        message = "*"+res[0].capitalize() + " " + res[1].capitalize() +"* \- " + "\[" + str(id) + "\]\n"
+        message = "*"+res[0].capitalize() + " " + res[1].capitalize() + \
+            "* \- " + "\[" + str(id) + "\]\n"
         message += "Average times:\n"
         message += "💧 \- "+parse_time(res[2])+"\n"
         message += "🚽 \- "+parse_time(res[3])
@@ -143,9 +150,9 @@ async def get_client(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             text=message, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
 
-@authorized
+@ authorized
 async def current(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    username = update.message.from_user.username.__str__()
+    username = update.message.from_user.username
     res = cursor.execute(
         """SELECT Clients.id, Clients.first_name, Clients.last_name
         FROM Clients INNER JOIN Watch
@@ -163,7 +170,7 @@ async def current(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         text=message, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
 
-@authorized
+@ authorized
 async def all_clients(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     res = cursor.execute(
         "SELECT id, first_name, last_name FROM Clients").fetchall()
@@ -175,11 +182,36 @@ async def all_clients(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         text=message, parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
 
 
+@ authorized
+async def track_client(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    args = [parse_int(s) for s in (update.message.text.split(sep=" "))[1:]]
+    username = update.message.from_user.username
+    res = cursor.execute(
+            """SELECT id FROM tofficers
+            WHERE telegram = ?""",
+            (username,)).fetchone()
+
+    to_id = res[0]
+
+    for id in args:
+        if id == 0:
+            continue
+
+        res = cursor.execute(
+            """INSERT OR IGNORE
+            INTO Watch (to_id, client_id)
+            VALUES (?, ?)""",
+            (to_id, id))
+
+        await update.message.reply_text(
+            text="Tracking client \["+str(id)+"\]",
+            parse_mode=telegram.constants.ParseMode.MARKDOWN_V2)
+
+
+@ authorized
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if (update is not None and update.message is not None and
             update.message.from_user is not None):
-        redisDB.set(update.message.from_user.username.__str__(),
-                    update.message.chat_id)
         await update.message.reply_text(
             "Your account has been registered with PottySense! \nPlease return to the portal.")
     else:
@@ -196,13 +228,9 @@ def main() -> None:
     application.add_handler(CommandHandler("current", current))
     application.add_handler(CommandHandler("search", search))
     application.add_handler(CommandHandler("id", get_client))
+    application.add_handler(CommandHandler("track", track_client))
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":
-    main()
-    main()
-    main()
-    main()
-    main()
     main()

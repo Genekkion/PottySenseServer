@@ -55,6 +55,7 @@ body {
 }
 
 #tab-panel {
+    margin-top: 1rem;
     width: 90%;
     display: flex;
     flex-direction: column;
@@ -62,26 +63,143 @@ body {
     align-items: center;
 }
 
+#logout-button,
 .main-tab {
     margin: 0rem 0.5rem;
+    padding: 0.5rem;
+    font-size: 1rem;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+#logout-button {
+    background-color: lightcoral;
+    cursor: pointer;
 }
 
 .search-box {
     margin: 0.5rem;
     width: 300px;
+    font-size: 1.25rem;
+
 }
 
+.add-button {
+    font-size: 1rem;
+    background-color: lightskyblue;
+    cursor: pointer;
+}
+
+.entry-remove-button,
+.entry-add-button {
+    width: 70px;
+    cursor: pointer;
+}
+
+.entry-remove-button {
+    color: whitesmoke;
+    background-color: red;
+}
+
+.entry-add-button {
+    color: whitesmoke;
+    background-color: blue;
+}
+
+
+#client-new-form {
+    margin: 1rem;
+}
+
+.new-field {
+    font-size: 1rem;
+}
 
 .settings-form-field {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    margin: 0.5rem 0.5rem;
+    width: 90%;
+
+    label {
+        font-size: 1.25rem;
+        font-weight: 400;
+    }
+
+    input {
+        font-size: 1.25rem;
+        font-weight: 500;
+        width: 250px;
+    }
+
 }
 
 
 
-table,
+table {
+    border-collapse: collapse;
+    border: 1px solid black;
+}
+
+tr,
 th,
 td {
+    padding: 0.25rem;
     border: 1px solid black;
+}
+
+
+thead {
+    th {
+        font-weight: 600;
+        width: 100px;
+    }
+}
+
+tbody {
+    th {
+        font-weight: 400;
+        width: 100px;
+
+        input {
+            width: 90%;
+            font-size: 0.9rem;
+        }
+    }
+}
+
+
+.settings-form {
+    width: 500px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid black;
+    padding-bottom: 30px;
+
+    span {
+        font-size: 1.125rem;
+        margin: 1rem 0.5rem;
+    }
+
+    button {
+        width: 80px;
+        height: 30px;
+        font-size: 1rem;
+        margin-top: 0.5rem;
+    }
+
+    button:hover {
+        cursor: pointer;
+    }
+}
+
+
+#client-header-div {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
 }

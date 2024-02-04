@@ -1,4 +1,4 @@
-<h3 id="log-user">Logged in as: {{ index .username }}</h3>
+<h3 id="log-user">Logged in as: {{ .to.Username }} [{{ .to.Id }}]</h3>
 
 <div id="tab-list" role="tablist" hx-target="#tab-panel" _="on htmx:afterOnLoad set @aria-selected of 
         <[aria-selected=true]/> to false tell the 
@@ -11,7 +11,7 @@
     <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/clients"
         hx-swap="outerHTML">clients
     </button>
-    {{ if eq .userType "admin" }}
+    {{ if eq .to.UserType "admin" }}
     <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/accounts"
         hx-swap="outerHTML">accounts
     </button>
@@ -24,8 +24,7 @@
 
     <form class="main-tab" action="/logout" method="post">
         {{ index .csrfField }}
-        <button id="logout-button" class="logout-button" type="submit">logout
-            <i class="fa-solid fa-right-from-bracket main-tab-icon"></i>
+        <button id="logout-button" type="submit">logout
         </button>
     </form>
 

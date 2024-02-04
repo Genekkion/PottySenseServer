@@ -14,5 +14,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.20 // indirect
 	github.com/redis/go-redis/v9 v9.4.0 // indirect
 	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/boj/redistore.v1 v1.0.0-20160128113310-fc113767cd6b // indirect
 )

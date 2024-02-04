@@ -1,11 +1,9 @@
 package main
 
 import (
-	"html/template"
-	"log"
-	"net/http"
-
 	"github.com/gorilla/csrf"
+	"html/template"
+	"net/http"
 )
 
 const baseTemplate = "./templates/base.html"
@@ -20,7 +18,6 @@ func (server *Server) dashboardPage(writer http.ResponseWriter,
 		)
 		return
 	} else if !server.isValidSession(request) {
-		log.Println("redirecting to index")
 		http.Redirect(writer, request, "/", http.StatusSeeOther)
 		return
 	}

@@ -1,9 +1,10 @@
 package main
 
 import (
-    "net/http"
-    "html/template"
-    "github.com/gorilla/csrf"
+	"github.com/gorilla/csrf"
+	"golang.org/x/crypto/bcrypt"
+	"html/template"
+	"net/http"
 )
 
 func (server *Server) htmxSettings(writer http.ResponseWriter,

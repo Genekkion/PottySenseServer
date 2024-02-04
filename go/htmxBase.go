@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/gorilla/csrf"
 	"html/template"
 	"net/http"
-	"github.com/gorilla/csrf"
 )
 
 func (server *Server) htmxDashboard(writer http.ResponseWriter,
@@ -24,9 +24,7 @@ func (server *Server) htmxDashboard(writer http.ResponseWriter,
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/dashboard.html"))
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
-		"id":             to.Id,
-		"username":       to.Username,
-		"userType":       to.UserType,
+		"to":             to,
 	})
 }
 

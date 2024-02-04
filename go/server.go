@@ -3,12 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/gorilla/csrf"
+	"github.com/gorilla/mux"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
 )
 
 type Server struct {
@@ -57,10 +57,12 @@ func addRoutes(server *Server) {
 	router.HandleFunc("/htmx/dashboard", server.htmxDashboard)
 
 	router.HandleFunc("/htmx/current", server.htmxCurrent)
+	router.HandleFunc("/htmx/current/clients", server.htmxCurrentClients)
 
 	router.HandleFunc("/htmx/clients", server.htmxClients)
 	router.HandleFunc("/htmx/clients/search", server.htmxClientEntry)
-	router.HandleFunc("/htmx/clients/current", server.htmxCurrentClients)
+	router.HandleFunc("/htmx/clients/assign", server.htmxClientAssign)
+	router.HandleFunc("/htmx/clients/new", server.htmxClientNewHandler)
 
 	router.HandleFunc("/htmx/accounts", server.htmxAccounts)
 	router.HandleFunc("/htmx/accounts/search", server.htmxAccountsSearch)
@@ -136,4 +138,3 @@ func addFileServer(server *Server) {
 	fileServer := http.FileServer(http.Dir("./static"))
 	server.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fileServer))
 }
-

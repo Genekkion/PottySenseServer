@@ -6,7 +6,8 @@ CREATE TABLE TOfficers (
     username TEXT NOT NULL,
     password TEXT NOT NULL,
     telegram TEXT DEFAULT '',
-    type TEXT NOT NULL DEFAULT "user"
+    telegram_verified INTEGER DEFAULT 0,
+    type TEXT NOT NULL DEFAULT 'user'
 );
 
 DROP TABLE IF EXISTS Clients;
@@ -25,7 +26,8 @@ CREATE TABLE Watch (
     to_id INTEGER,
     client_id INTEGER,
     FOREIGN KEY (to_id) REFERENCES TOfficers (id),
-    FOREIGN KEY (client_id) REFERENCES Clients (id)
+    FOREIGN KEY (client_id) REFERENCES Clients (id),
+    UNIQUE (to_id, client_id)
 );
 
 

@@ -1,16 +1,29 @@
-{{ range .clients }}
+{{ range .entries }}
 
 <tr>
-    <th>{{ .Id }}</th>
-    <th>{{ .FirstName }}</th>
-    <th>{{ .LastName }}</th>
-    <th>{{ .Gender }}</th>
-    <th>{{ .Urination }}</th>
-    <th>{{ .Defecation }}</th>
-    <th>{{ .LastRecord }}</th>
+    <th>{{ .Client.Id }}</th>
+    <th>{{ .Client.FirstName }}</th>
+    <th>{{ .Client.LastName }}</th>
+    <th>{{ .Client.Gender }}</th>
+    <th>{{ .Client.Urination }}</th>
+    <th>{{ .Client.Defecation }}</th>
+    <th>{{ .Client.LastRecord }}</th>
+
 
     <th>
-        <button hx-target="this" hx-swap="outerHTML" hx-trigger="click">Add</button>
+        <form hx-post="/htmx/clients/assign" hx-target="this" hx-swap="outerHTML">
+            {{ $.csrfField }}
+            <input type="hidden" name="clientId" value="{{ .Client.Id }}">
+            {{ if .IsAssigned }}
+            <input type="hidden" name="toAssign" value="false">
+            <button class="entry-remove-button"
+                type="submit">Remove</button>
+            {{ else }}
+            <input type="hidden" name="toAssign" value="true">
+            <button class="entry-add-button"
+                type="submit">Add</button>
+            {{ end }}
+        </form>
     </th>
 
 </tr>

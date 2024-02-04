@@ -26,7 +26,7 @@ func newSqliteStorage() *SqliteStorage {
 		log.Panic(err)
 	}
 
-	log.Println("sqlite connection successfully created")
+	log.Println("Sqlite connection successfully created.")
 
 	rows, err := db.Query("select * from Tofficers")
 	if err != nil {
@@ -45,8 +45,6 @@ func newSqliteStorage() *SqliteStorage {
         var userType string
 		err = rows.Scan(&id, &first_name, &last_name,
 			&username, &password, &telegram, &userType)
-		log.Println("query->", id, first_name, last_name,
-			username, password, telegram, userType)
 	}
 
 	return &SqliteStorage{
