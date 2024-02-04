@@ -62,7 +62,7 @@ func (storage *SqliteStorage) createAdmin(username string, password string) {
 		bcrypt.DefaultCost)
 	if err != nil {
 		log.Println("Error creating admin, please try again.")
-		log.Panicln(err)
+        log.Println(err)
 	}
 
 	_, err = storage.db.Exec(
@@ -71,7 +71,28 @@ func (storage *SqliteStorage) createAdmin(username string, password string) {
 		toLowerCase(username), passwordHash)
 	if err != nil {
 		log.Println("Error creating admin, please try again.")
-		log.Panicln(err)
+        log.Println(err)
+        return
 	}
 	log.Println("Successfully created admin account.")
+}
+
+func (storage *SqliteStorage) createUser(username string, password string) {
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(saltPassword(password)),
+		bcrypt.DefaultCost)
+	if err != nil {
+		log.Println("Error creating user, please try again.")
+        log.Println(err)
+	}
+
+	_, err = storage.db.Exec(
+		`INSERT INTO TOfficers (username, password, type)
+        VALUES ($1, $2, 'user')`,
+		toLowerCase(username), passwordHash)
+	if err != nil {
+		log.Println("Error creating user, please try again.")
+        log.Println(err)
+        return
+	}
+	log.Println("Successfully created user account.")
 }
