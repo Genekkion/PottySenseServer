@@ -1,0 +1,12 @@
+<tr id="account-entry-{{ .account.Id }}">
+    <th>{{ .account.Id }}</th>
+    <th>{{ .account.FirstName }}</th>
+    <th>{{ .account.LastName }}</th>
+    <th>{{ .account.Username }}</th>
+    <th>{{ .account.Telegram }}</th>
+    <th>{{ .account.UserType }}</th>
+    <th>
+        <button hx-get="/htmx/accounts/{{ .account.Id }}/edit" hx-target="#account-entry-{{ .account.Id }}" hx-swap="outerHTML"
+            hx-trigger="click">edit</button>
+    </th>
+</tr>

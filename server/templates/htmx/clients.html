@@ -1,0 +1,31 @@
+<div id="tab-panel" role="tabpanel">
+    <div id="client-header-div">
+
+        <input id="client-search" name="search" class="search-box" type="search" placeholder="Search for client"
+            hx-post="/htmx/clients/search" hx-headers='{ "X-CSRF-Token": "{{ .csrfToken }}" }'
+            hx-target="#search-results" hx-swap="innerHTML" hx-trigger="input changed delay:500ms, search, load, newClient from:body">
+
+        <button class="add-button"
+            hx-get="/htmx/clients/new" hx-target="#client-new-form" hx-swap="outerHTML">New client</button>
+    </div>
+    <div id="client-new-form"></div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>First name</th>
+                <th>Last name</th>
+                <th>Gender</th>
+                <th>Urination<br>(MM:SS)</th>
+                <th>Defecation<br>(MM:SS)</th>
+                <th>Last record<br>(HH:MM)</th>
+                <th>Track</th>
+            </tr>
+        </thead>
+
+        <tbody id="search-results" class="clients-table">
+
+        </tbody>
+    </table>
+</div>

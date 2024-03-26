@@ -1,0 +1,33 @@
+<div id="tab-panel" role="tabpanel">
+    <h3>Account details</h3>
+
+    <form id="settings-account-detail-form" class="settings-form" hx-post="htmx/settings/details" hx-target="this"
+        hx-swap="beforeend">
+        {{ .csrfField }}
+        <div class="settings-form-field">
+            <label for="settings-first-name">First name:</label>
+            <input id="settings-first-name" name="firstName" type="text" placeholder="First name"
+                value="{{ .account.FirstName }}" required>
+        </div>
+        <div class="settings-form-field">
+            <label for="settings-last-name">Last name:</label>
+            <input id="settings-last-name" name="lastName" type="text" placeholder="Last name"
+                value="{{ .account.LastName }}" required>
+        </div>
+        <div class="settings-form-field">
+            <label for="settings-telegram">Telegram:</label>
+            <input id="settings-telegram" name="telegram" type="text" placeholder="Telegram"
+                value="{{ .account.Telegram }}">
+        </div>
+        <span>After editing your Telegram handle, please start a chat with
+            <a href="https://t.me/PottySenseBot"><b>@PottySenseBot</b></a> to verify it.</span>
+        <button type="submit">Save</button>
+    </form>
+
+
+    <h3>Change password</h3>
+
+    <form id="settings-account-password-form" hx-get="htmx/settings/password" hx-target="this" hx-swap="outerHTML"
+        hx-trigger="load">
+    </form>
+</div>

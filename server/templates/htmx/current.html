@@ -1,0 +1,22 @@
+<div id="tab-panel" role="tabpanel" hx-target="this" hx-swap="outerHTML">
+    <h3>Currently tracked clients</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>First name</th>
+                <th>Last name</th>
+                <th>Gender</th>
+                <th>Urination<br>(MM:SS)</th>
+                <th>Defecation<br>(MM:SS)</th>
+                <th>Last record<br>(HH:MM)</th>
+            </tr>
+        </thead>
+
+        <tbody id="search-results" class="clients-table" hx-post="/htmx/current/clients"
+            hx-headers='{ "X-CSRF-Token": "{{ .csrfToken }}" }' hx-target="#search-results" hx-swap="innerHTML"
+            hx-trigger="load">
+
+        </tbody>
+    </table>
+</div>
