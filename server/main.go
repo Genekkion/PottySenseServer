@@ -11,14 +11,14 @@ import (
 
 func main() {
 	globals.RUN = true
-	utils.SetEnv("./.env")
+	utils.SetEnv("../.env")
 
 	redisSessionStore := utils.NewRedisSessionStore()
 	defer redisSessionStore.Close()
 
 	dbStorage := utils.NewSqliteStorage(os.Getenv("DATABASE_PATH"))
 	defer dbStorage.Close()
-	
+
 	internal.ParseFlags(dbStorage)
 
 	redisStorage := utils.NewRedisStorage()
