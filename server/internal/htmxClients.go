@@ -82,16 +82,17 @@ func (server *Server) htmxClientEntry(writer http.ResponseWriter,
 	for rows.Next() {
 		var client Client
 		var checkTo sql.NullInt32
-		var urination int
-		var defecation int
+		//var urination int
+		//var defecation int
 		rows.Scan(&client.Id, &client.FirstName, &client.LastName,
-			&client.Gender, &urination, &defecation,
+			&client.Gender, &client.Urination, &client.Defecation,
 			&client.LastRecord, &checkTo)
-		client.Urination = fmt.Sprintf("%02d:%02d",
-			urination/60, urination%60)
-		client.Defecation = fmt.Sprintf("%02d:%02d",
-			defecation/60, defecation%60)
-
+		/*
+			client.Urination = fmt.Sprintf("%02d:%02d",
+				urination/60, urination%60)
+			client.Defecation = fmt.Sprintf("%02d:%02d",
+				defecation/60, defecation%60)
+		*/
 		isAssigned := checkTo.Valid
 
 		// client.FirstName = caser.String(client.FirstName)

@@ -5,8 +5,7 @@ CREATE TABLE TOfficers (
     last_name TEXT DEFAULT '',
     username TEXT NOT NULL,
     password TEXT NOT NULL,
-    telegram TEXT DEFAULT '',
-    telegram_verified INTEGER DEFAULT 0,
+    telegram_chat_id TEXT DEFAULT '',
     type TEXT NOT NULL DEFAULT 'user'
 );
 

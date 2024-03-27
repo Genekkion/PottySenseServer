@@ -23,7 +23,7 @@ set_env()
 redisDB = redis.Redis(host="localhost", port=int(os.environ["REDIS_PORT"]),
                       decode_responses=True, password=os.environ["REDIS_PASSWORD"])
 
-db = sqlite3.connect(os.environ["DB_PATH"])
+db = sqlite3.connect(os.environ["DATABASE_PATH"])
 cursor = db.cursor()
 
 
@@ -248,6 +248,22 @@ async def untrack_client(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if (update is not None and update.message is not None and
             update.message.from_user is not None):
+        # TODO: save telegram username-chatid mapping to db
+        
+        print(update.message.chat_id)
+        redisDB.set(update.message.from_user.username, update.message.chat_id)
+        cursor.execute(
+            """
+                UPDATE TOfficers
+                SET telegram_chat_id = $1
+                WHERE telegram = $2
+            """,(
+                update.message.chat_id,
+                update.message.from_user.username
+            )
+        )
+        db.commit()
+
         await update.message.reply_text(
             "Your account has been registered with PottySense!")
     else:
@@ -275,12 +291,12 @@ def main() -> None:
     """Start the bot."""
     TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
     application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("clients", all_clients))
-    application.add_handler(CommandHandler("current", current))
-    application.add_handler(CommandHandler("search", search))
-    application.add_handler(CommandHandler("id", get_client))
-    application.add_handler(CommandHandler("track", track_client))
+    #application.add_handler(CommandHandler("start", start))
+    #application.add_handler(CommandHandler("clients", all_clients))
+    #application.add_handler(CommandHandler("current", current))
+    #application.add_handler(CommandHandler("search", search))
+    #application.add_handler(CommandHandler("id", get_client))
+    #application.add_handler(CommandHandler("track", track_client))
     application.add_handler(CommandHandler("untrack", untrack_client))
     application.add_handler(CommandHandler("help", help))
     application.run_polling(allowed_updates=Update.ALL_TYPES)

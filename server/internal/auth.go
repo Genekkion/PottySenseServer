@@ -19,6 +19,12 @@ func (server *Server) isValidSession(request *http.Request) bool {
 		log.Println(err)
 		return false
 	}
+	log.Println(
+		session.Values["id"],
+		session.Values["username"],
+		session.Values["telegram"],
+		session.Values["userType"],
+	)
 	return session.Values["id"] != nil
 }
 
@@ -187,4 +193,20 @@ func (server *Server) secureHtmx(writer http.ResponseWriter,
 		Telegram: telegram.(string),
 		UserType: userType.(string),
 	}, nil
+}
+
+// Function prototype for the authWrapper below
+type serverFunc func(http.ResponseWriter, *http.Request)
+
+// Wraps any http.HandleFunc functions. Requires the
+// browser to be logged in, else defaults to login page.
+// Used for ALL possible routes that are exposed.
+func (server *Server) authWrapper(function serverFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		if !server.isValidSession(request) {
+			http.Redirect(writer, request, "/login", http.StatusSeeOther)
+		} else {
+			function(writer, request)
+		}
+	}
 }

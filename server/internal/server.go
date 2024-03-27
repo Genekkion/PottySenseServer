@@ -2,18 +2,16 @@ package internal
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
-	"html/template"
-	"log"
-	"net/http"
-	"os"
-
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	"github.com/redis/go-redis/v9"
 	"gopkg.in/boj/redistore.v1"
+	"html/template"
+	"log"
+	"net/http"
+	"os"
 )
 
 type Server struct {
@@ -25,7 +23,8 @@ type Server struct {
 	telebotAddr       string
 }
 
-func InitServer(dbStorage *sql.DB, redisSessionStore *redistore.RediStore,
+func InitServer(dbStorage *sql.DB,
+	redisSessionStore *redistore.RediStore,
 	redisStorage *redis.Client) *Server {
 
 	listenAddr := ":" + os.Getenv("PORT")
@@ -37,17 +36,20 @@ func InitServer(dbStorage *sql.DB, redisSessionStore *redistore.RediStore,
 		listenAddr:        listenAddr,
 		dbStorage:         dbStorage,
 		redisSessionStore: redisSessionStore,
+		redisStorage:      redisStorage,
 		router:            router,
 		telebotAddr:       telebotAddr,
 	}
 
 	server.addFileServer()
 	server.addRoutes()
+	server.addExternalRoutes()
 
 	log.Printf("Server running on: http://localhost%s\n", server.listenAddr)
 	return server
 }
 
+// Adds all stanard routes
 func (server *Server) addRoutes() {
 	router := server.router
 
@@ -79,13 +81,39 @@ func (server *Server) addRoutes() {
 	router.HandleFunc("/htmx/settings/password", server.htmxSettingsPasswordHandler)
 }
 
+var (
+	// All routes in UNPROTECTED_ROUTES will NOT
+	// be CSRF protected
+	UNPROTECTED_ROUTES = []string{
+		"/ext/api",
+	}
+)
+
+// Starts the server
 func (server *Server) Run() {
 	CSRF := csrf.Protect([]byte(os.Getenv("CSRF_SECRET")),
 		csrf.Secure(os.Getenv("IS_PROD") == "true"))
 
-	http.ListenAndServe(server.listenAddr, CSRF(server.router))
+	server.router.Use(func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(writer http.ResponseWriter,
+			request *http.Request) {
+			served := false
+			for _, route := range UNPROTECTED_ROUTES {
+				if request.URL.Path == route {
+					served = true
+					handler.ServeHTTP(writer, request)
+					break
+				}
+			}
+			if !served {
+				CSRF(handler).ServeHTTP(writer, request)
+			}
+		})
+	})
+	http.ListenAndServe(server.listenAddr, server.router)
 }
 
+// Writes json to the writer
 func writeJson(writer http.ResponseWriter, statusCode int, value any) error {
 	writer.WriteHeader(statusCode)
 	writer.Header().Add("Content-Type", "application/json")
@@ -93,6 +121,7 @@ func writeJson(writer http.ResponseWriter, statusCode int, value any) error {
 	return json.NewEncoder(writer).Encode(value)
 }
 
+// Handles the "/" route
 func (server *Server) indexHandler(writer http.ResponseWriter,
 	request *http.Request) {
 	var hxGet string
@@ -113,19 +142,39 @@ func (server *Server) indexHandler(writer http.ResponseWriter,
 	})
 }
 
-func (server *Server) sendTele(request *http.Request, message string) error {
-	rClient := server.redisStorage
-	session, err := server.redisSessionStore.Get(request, "PS-cookie")
+// Sends telegram message to a specified chatId.
+// Accepts the template to apply
+func (server *Server) sendTeleTemplate(chatId string,
+	tmpl *template.Template) error {
+
+	var stringBuffer bytes.Buffer
+	err := tmpl.Execute(&stringBuffer, "")
 	if err != nil {
+		log.Println("sendTeleTemplate(), execute template")
+		log.Println(err)
 		return err
 	}
 
-	telegram := session.Values["telegram"]
-	chatId, err := rClient.Get(context.Background(),
-		telegram.(string)).Result()
+	body, err := json.Marshal(
+		map[string]string{
+			"chat_id": chatId,
+			"text":    stringBuffer.String(),
+		},
+	)
 	if err != nil {
 		return err
 	}
+	response := bytes.NewBuffer(body)
+	_, err = http.Post(
+		server.telebotAddr,
+		"application/json",
+		response,
+	)
+	return err
+}
+
+// Sends telegram message to a specified chatId
+func (server *Server) sendTeleString(chatId string, message string) error {
 	body, err := json.Marshal(
 		map[string]string{
 			"chat_id": chatId,
@@ -136,10 +185,15 @@ func (server *Server) sendTele(request *http.Request, message string) error {
 		return err
 	}
 	response := bytes.NewBuffer(body)
-	_, err = http.Post(server.telebotAddr, "application/json", response)
+	_, err = http.Post(
+		server.telebotAddr,
+		"application/json",
+		response,
+	)
 	return err
 }
 
+// Serves static files
 func (server *Server) addFileServer() {
 	fileServer := http.FileServer(http.Dir("./static"))
 	server.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fileServer))

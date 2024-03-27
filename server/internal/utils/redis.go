@@ -33,5 +33,7 @@ func NewRedisStorage() *redis.Client {
 		DB:       0,
 	})
 
+
 	return client
 }
+

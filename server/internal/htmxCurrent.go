@@ -66,17 +66,18 @@ func (server *Server) htmxCurrentClients(writer http.ResponseWriter,
 	// caser := cases.Title(language.English)
 	for rows.Next() {
 		var client Client
-		var urination int
-		var defecation int
+		// var urination int
+		// var defecation int
 
 		rows.Scan(&client.Id, &client.FirstName, &client.LastName,
-			&client.Gender, &urination, &defecation,
+			&client.Gender, &client.Urination, &client.Defecation,
 			&client.LastRecord)
-		client.Urination = fmt.Sprintf("%02d:%02d",
-			urination/60, urination%60)
-		client.Defecation = fmt.Sprintf("%02d:%02d",
-			defecation/60, defecation%60)
-
+		/*
+			client.Urination = fmt.Sprintf("%02d:%02d",
+				urination/60, urination%60)
+			client.Defecation = fmt.Sprintf("%02d:%02d",
+				defecation/60, defecation%60)
+		*/
 		startTime, err := time.Parse(time.RFC3339, client.LastRecord)
 		if err != nil {
 			writeJson(writer, http.StatusInternalServerError,

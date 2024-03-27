@@ -9,6 +9,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// /htmx/settings handler
+func (server *Server) htmxSettingsHandler(writer http.ResponseWriter,
+	request *http.Request) {
+
+	switch request.Method {
+
+	case http.MethodGet:
+		server.htmxSettings(writer, request)
+
+	case http.MethodPost:
+
+	default:
+		http.Error(writer, "Method not allowed.",
+			http.StatusMethodNotAllowed)
+	}
+}
+
 func (server *Server) htmxSettings(writer http.ResponseWriter,
 	request *http.Request) {
 	if request.Method != "GET" {
@@ -168,7 +185,7 @@ func (server *Server) htmxSettingsPasswordChange(writer http.ResponseWriter,
 	}
 
 	err = bcrypt.CompareHashAndPassword(
-		[]byte(passwordHash), 
+		[]byte(passwordHash),
 		[]byte(utils.SaltPassword(oldPassword)),
 	)
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/settingsPassword.html"))
@@ -181,7 +198,7 @@ func (server *Server) htmxSettingsPasswordChange(writer http.ResponseWriter,
 	}
 
 	newPasswordHash, _ := bcrypt.GenerateFromPassword(
-		[]byte(newPassword), 
+		[]byte(newPassword),
 		bcrypt.DefaultCost,
 	)
 

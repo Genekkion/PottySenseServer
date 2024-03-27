@@ -72,23 +72,23 @@ func ParseFile(filePath string, db *sql.DB) {
 		}
 
 		client := Client{
-			FirstName:  row[0],
-			LastName:   row[1],
-			Gender:     strings.ToLower(row[2]),
-			Urination:  row[3],
-			Defecation: row[4],
+			FirstName: row[0],
+			LastName:  row[1],
+			Gender:    strings.ToLower(row[2]),
+			//Urination:  row[3],
+			//Defecation: row[4],
 		}
 
 		if !(client.Gender == "male" || client.Gender == "female") {
 			log.Printf("Incorrect format for gender at Row %d, aborting.\n", i+1)
 			return
 		}
-		uri, err := strconv.Atoi(client.Urination)
+		uri, err := strconv.Atoi(row[3])
 		if err != nil {
 			log.Printf("Error parsing urination value at Row %d, aborting.\n", i+1)
 			return
 		}
-		defec, err := strconv.Atoi(client.Defecation)
+		defec, err := strconv.Atoi(row[4])
 		if err != nil {
 			log.Printf("Error parsing defecation value at Row %d, aborting.\n", i+1)
 			return

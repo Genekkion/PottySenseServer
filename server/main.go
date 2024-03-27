@@ -24,7 +24,6 @@ func main() {
 	redisStorage := utils.NewRedisStorage()
 	defer redisStorage.Close()
 
-
 	if !globals.RUN {
 		log.Println("Exiting program.")
 		return

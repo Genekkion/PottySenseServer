@@ -4,4 +4,4 @@ VALUES ('John', 'Doe', 'male'),
 
 INSERT INTO TOfficers (first_name, last_name,
     username, password)
-VALUES ('hello', 'world', 'hellow', 'world');
+VALUES ('hello', 'world', 'hello', 'world');
