@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   server:
+    container_name: pottysenseserver
     build:
       context: .
       dockerfile: ./server/Dockerfile
@@ -12,10 +13,11 @@ services:
     env_file:
       - .env
     networks:
-      - mynetwork
+      - psnetwork
 
   telebot:
-    build:
+    container_name: pottysensetelebot
+    build: 
       context: .
       dockerfile: ./telebot/Dockerfile
     volumes:
@@ -23,13 +25,14 @@ services:
     env_file:
       - .env
     networks:
-      - mynetwork
+      - psnetwork
 
   redis:
+    container_name: pottysenseredis
     image: redis
     networks:
-      - mynetwork
+      - psnetwork
 
 networks:
-  mynetwork:
+  psnetwork:
     driver: bridge
