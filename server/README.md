@@ -5,11 +5,8 @@
 This is the main, central http web server which acts as the central hub for communications between the system and users. It includes both the backend and frontend together through the use of HTMX.
 
 ## Table of Contents
-1. [Docker Setup]
-2. [Installation and Setup](#installation-and-setup)
-3. [External routes](#external-routes)
-
-## Docker Setup
+1. [Installation and Setup](#installation-and-setup)
+1. [External routes](#external-routes)
 
 
 ## Installation and Setup
@@ -23,7 +20,7 @@ This is the main, central http web server which acts as the central hub for comm
     go version
     ```
 
-2. **Create and edit the `.env` file**
+1. **Create and edit the `.env` file**
 
     Copy the file `.env.example` into a new filed named `.env`. Open up the file using a text editor and add in the relevant information.
 
@@ -31,7 +28,7 @@ This is the main, central http web server which acts as the central hub for comm
     cp .env.example .env
     ```
 
-3. **Install dependencies & Build**
+1. **Install dependencies & Build**
 
     Run the following commands to install dependencies and build the server.
 
@@ -41,7 +38,7 @@ This is the main, central http web server which acts as the central hub for comm
 
     An executable file named "PottySenseServer" (or something similar, depending on OS) should now be present in the same folder.
 
-4. **Run the server**
+1. **Run the server**
 
     Run the executable and head over to the `LISTEN_ADDR` as specified in the `.env` file or as advertised in the terminal.
 
