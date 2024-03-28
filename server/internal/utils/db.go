@@ -2,6 +2,7 @@ package utils
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"strings"
 
@@ -58,77 +59,56 @@ func testDB(db *sql.DB) {
 	rows.Close()
 }
 
-func CreateAdmin(db *sql.DB,
-	username string, password string) {
-	log.Println("HERER")
-	log.Println(username)
-	log.Println(password)
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(
-		SaltPassword(password)),
-		bcrypt.DefaultCost)
-	if err != nil {
-		log.Println("Error creating admin, please try again.")
-		log.Fatalln(err)
-	}
-	var id sql.NullInt32
-	err = db.QueryRow(
-		`SELECT id FROM TOFFICERS WHERE username = $1`,
-		strings.ToLower(username),
-	).Scan(&id)
-	if err == nil {
-		log.Println("Another account with this username already exists. Please use another username.")
-		return
-	} else if err != sql.ErrNoRows {
-		log.Println("Error creating admin, please try again.")
-		log.Fatalln(err)
-	}
+// Adds the user into the DB
+func CreateUser(db *sql.DB, firstName string,
+	lastName string, username string,
+	password string, userType string)error {
+	userType = strings.ToLower(userType)
+	username = strings.ToLower(username)
 
-	_, err = db.Exec(
-		`INSERT INTO TOfficers (username, password, type)
-        VALUES ($1, $2, 'admin')`,
-		strings.ToLower(username),
-		string(passwordHash))
-	if err != nil {
-		log.Println("Error creating admin, please try again.")
-		log.Fatalln(err)
+	if userType != "user" && userType != "admin" {
+		log.Println("Invalid userType, no account created.")
+		return errors.New("Invalid userType")
 	}
-	log.Println("Successfully created admin account.")
-}
-
-func CreateUser(db *sql.DB,
-	username string, password string) {
 
 	passwordHash, err := bcrypt.GenerateFromPassword(
 		[]byte(SaltPassword(password)),
 		bcrypt.DefaultCost)
 	if err != nil {
 		log.Println("Error creating user, please try again.")
-		log.Fatalln(err)
+		log.Println(err)
+		return err
 	}
 
 	var id sql.NullInt32
 	err = db.QueryRow(
-		`SELECT id FROM TOFFICERS WHERE username = $1`,
-		strings.ToLower(username),
-	).Scan(&id)
+		`SELECT id
+		FROM TOFFICERS
+		WHERE username = $1
+		`, username).Scan(&id)
 	if err == nil {
 		log.Println("Another account with this username already exists. Please use another username.")
-		return
+		return errors.New("Invalid username")
 	} else if err != sql.ErrNoRows {
 		log.Println("Error creating user, please try again.")
-		log.Fatalln(err)
+		log.Println(err)
+		return err
 	}
 
 	_, err = db.Exec(
-		`INSERT INTO TOfficers (username, password, type)
-		VALUES ($1, $2, 'admin')`,
-		strings.ToLower(username),
-		passwordHash)
+		`INSERT INTO TOfficers
+			(first_name, last_name,
+			username, password, type)
+		VALUES ($1, $2, $3, $4, $5)
+		`, firstName, lastName,
+		username, passwordHash, userType)
 	if err != nil {
 		log.Println("Error creating user, please try again.")
-		log.Fatalln(err)
+		log.Println(err)
+		return err
 	}
 	log.Println("Successfully created user account.")
+	return nil
 }
 
 func SaltPassword(password string) string {

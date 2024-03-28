@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify, current_app
 import os
 from dotenv import load_dotenv
 import requests as rq
+import aiohttp
 
 load_dotenv()
 
@@ -35,13 +36,18 @@ def create_app():
         print("Required env variable SERVER_ADDR not set. Exiting.")
         exit()
     start_session_threshold = os.getenv("START_SESSION_THRESHOLD")
-    if start_session_threshold is None:
+    if start_session_threshold is None or start_session_threshold == "":
         print(
-            "Optional env variable START_SESSION_THRESHOLD not set. Defaulting to 300s"
+            "Optional env variable START_SESSION_THRESHOLD not set. Defaulting to 300s."
         )
     else:
         global START_SESSION_THRESHOLD
-        START_SESSION_THRESHOLD = start_session_threshold
+        try:
+            START_SESSION_THRESHOLD = int(start_session_threshold)
+        except ValueError:
+            print(
+                "Invalid value for env variable START_SESSION_THRESHOLD, defaulting to 300s."
+            )
 
     SERVER_ADDR += "/ext"
     try:
@@ -64,6 +70,10 @@ def create_app():
         # Constants
         current_app.config["SECRET_HEADER"] = SECRET_HEADER
         current_app.config["SERVER_ADDR"] = SERVER_ADDR + "/api"
+        current_app.config["HEADER_CONFIG"] = {
+            "Content-Type": "application/json",
+            "X-PS-Header": SECRET_HEADER,
+        }
 
         # Default values for numerical values will be -1
         current_app.config["timestamp_1"] = -1
@@ -78,56 +88,33 @@ def create_app():
 app = create_app()
 
 
-def METHOD_NOT_ALLOWED_REPLY():
-    return (
-        jsonify(
-            {
-                "error": "Method not allowed.",
-            }
-        ),
-        HTTP_STATUS_METHOD_NOT_ALLOWED,
-    )
-
-
 async def send_tele_message(message: str, message_type: str):
-    url = current_app.config["SERVER_ADDR"]
     try:
         current_client_id = current_app.config["current_client_id"]
         data = {
-            "message": "Client "
-            + str(current_client_id)
-            + " has yet to enter the toilet."
+            "clientId": current_client_id,
+            "message": message,
+            "messageType": message_type,
         }
-        # send post request to server
-        # for a messgae
 
-        response = rq.post(url, json=data)
-
-    except rq.RequestException:
-        pass
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                current_app.config["SERVER_ADDR"],
+                json=data,
+                headers=current_app.config["HEADER_CONFIG"],
+            ) as response:
+                print(response.status)  # print response status code
+    except aiohttp.ClientError as err:
+        print(err)
 
 
 async def first_timer_warning():
     print("first_timer_warning - start sleeping")
     await asyncio.sleep(START_SESSION_THRESHOLD)
-    # TODO:
-    url = ""
-    try:
-        current_client_id = current_app.config["current_client_id"]
-        data = {
-            "message": "Client "
-            + str(current_client_id)
-            + " has yet to enter the toilet."
-        }
-        # send post request to server
-        # for a messgae
-
-        response = rq.post(url, json=data)
-
-    except rq.RequestException:
-        pass
-
-    pass
+    send_tele_message(
+        "Client has yet to have entered the toilet",
+        "alert",
+    )
 
 
 # Wraps all the routes
@@ -238,6 +225,10 @@ def api_handler():
                 HTTP_STATUS_BAD_REQUEST,
             )
 
+        current_app.config["async_tasks"].append(
+            asyncio.create_task(first_timer_warning())
+        )
+
         return (
             jsonify(
                 {
@@ -259,7 +250,7 @@ def api_handler():
         current_app.config["async_tasks"] = []
 
         for task in current_app.config["async_tasks"]:
-            task.cacnel()
+            task.cancel()
         current_app.config["async_tasks"].clear()
         return (
             jsonify(
@@ -271,5 +262,11 @@ def api_handler():
         )
 
     # Catch all return statement
-    # Only "PUT" should reach here
-    return METHOD_NOT_ALLOWED_REPLY()
+    return (
+        jsonify(
+            {
+                "error": "Method not allowed.",
+            }
+        ),
+        HTTP_STATUS_METHOD_NOT_ALLOWED,
+    )

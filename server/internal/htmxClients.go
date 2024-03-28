@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/genekkion/PottySenseServer/internal/globals"
@@ -32,8 +33,7 @@ func (server *Server) htmxClientsPanel(writer http.ResponseWriter,
 	request *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/clients.html"))
 	tmpl.Execute(writer, map[string]interface{}{
-		csrf.TemplateTag: csrf.TemplateField(request),
-		"csrfToken":      csrf.Token(request),
+		"csrfToken": csrf.Token(request),
 	})
 
 }
@@ -73,7 +73,7 @@ func (server *Server) htmxClientSearch(writer http.ResponseWriter,
 
 	type ClientEntry struct {
 		Client     Client
-		IsAssigned bool
+		IsTracking bool
 	}
 
 	var entries []ClientEntry
@@ -94,7 +94,7 @@ func (server *Server) htmxClientSearch(writer http.ResponseWriter,
 			&checkTo,
 		)
 
-		isAssigned := checkTo.Valid
+		istracking := checkTo.Valid
 
 		if time.Since(client.LastRecord).Hours() < globals.LAST_RECORD_THRESHOLD {
 			client.PrettyLastRecord = utils.GetTimeElapsedPretty(client.LastRecord)
@@ -104,7 +104,7 @@ func (server *Server) htmxClientSearch(writer http.ResponseWriter,
 
 		entries = append(entries, ClientEntry{
 			Client:     client,
-			IsAssigned: isAssigned,
+			IsTracking: istracking,
 		})
 	}
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/clientEntry.html"))
@@ -185,13 +185,10 @@ func (server *Server) htmxClientNewHandler(writer http.ResponseWriter,
 // TODO: Change to modal
 func htmxClientNewForm(writer http.ResponseWriter,
 	request *http.Request, _ *Server) {
-	tmpl := template.Must(template.ParseFiles("./templates/htmx/clientNew.html"))
-	tmpl.Execute(writer,
-		map[string]interface{}{
-			csrf.TemplateTag: csrf.TemplateField(request),
-		},
-	)
-
+	tmpl := template.Must(template.ParseFiles("./templates/htmx/clientNewModal.html"))
+	tmpl.Execute(writer, map[string]interface{}{
+		csrf.TemplateTag: csrf.TemplateField(request),
+	})
 }
 
 // /htmx/clients/new "POST"
@@ -199,7 +196,7 @@ func htmxClientNewSave(writer http.ResponseWriter,
 	request *http.Request, server *Server) {
 	err := request.ParseForm()
 	if err != nil {
-		log.Println("htmxClientNewPost() - parse form")
+		log.Println("htmxClientNewSave() - parse form")
 		log.Println(err)
 		genericInternalServerErrorReply(writer)
 		return
@@ -208,19 +205,22 @@ func htmxClientNewSave(writer http.ResponseWriter,
 	firstName := request.FormValue("firstName")
 	lastName := request.FormValue("lastName")
 	gender := request.FormValue("gender")
-	// TODO: add more form values for urination, defecation
+	urination, _ := strconv.Atoi(request.FormValue("urination"))
+	defecation, _ := strconv.Atoi(request.FormValue("defecation"))
 
 	_, err = server.db.Exec(
 		`INSERT INTO Clients 
-        	(first_name, last_name, gender)
-        VALUES ($1, $2, $3)`,
-		firstName, lastName, gender)
+        	(first_name, last_name,
+			gender, urination, defecation)
+        VALUES ($1, $2, $3, $4, $5)`,
+		firstName, lastName, gender,
+		urination, defecation)
 	if err != nil {
-		log.Println("htmxClientNewPost() - db insert")
+		log.Println("htmxClientNewSave() - db insert")
 		log.Println(err)
 		genericInternalServerErrorReply(writer)
 		return
 	}
 	writer.Header().Add("HX-Trigger", "newClient")
-	writeJson(writer, http.StatusCreated, nil)
+	//writeJson(writer, http.StatusCreated, nil)
 }

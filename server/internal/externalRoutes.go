@@ -2,15 +2,34 @@ package internal
 
 import (
 	"encoding/json"
-	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"strings"
+
+	"github.com/genekkion/PottySenseServer/internal/globals"
 )
+
+// Wraps any http.HandleFunc functions which
+// are unprotected by CSRF
+func (server *Server) extWrapper(function serverFunc) http.HandlerFunc {
+	return func(writer http.ResponseWriter, request *http.Request) {
+		log.Println(request.Header.Get(globals.SECRET_HEADER))
+		log.Println(os.Getenv("SECRET_HEADER"))
+		if request.Header.Get(globals.SECRET_HEADER) !=
+			os.Getenv("SECRET_HEADER") {
+			genericUnauthorizedReply(writer)
+		} else {
+			function(writer, request)
+		}
+
+	}
+}
 
 func (server *Server) addExternalRoutes() {
 	router := server.router
-	router.HandleFunc("/ext", server.externalHealth)
-	router.HandleFunc("/ext/api", server.externalHandler)
+	router.HandleFunc("/ext", server.extWrapper(server.externalHealth))
+	router.HandleFunc("/ext/api", server.extWrapper(server.externalHandler))
 }
 
 // /ext ALL METHODS
@@ -20,7 +39,6 @@ func (server *Server) externalHealth(writer http.ResponseWriter,
 	writeJson(writer, http.StatusOK, map[string]string{
 		"message": "Server is up and running!",
 	})
-
 }
 
 // /ext/api
@@ -29,7 +47,7 @@ func (server *Server) externalHandler(writer http.ResponseWriter,
 
 	switch request.Method {
 	case http.MethodPost:
-		server.PiSendTO(writer, request)
+		server.extSendTele(writer, request)
 	default:
 		genericMethodNotAllowedReply(writer)
 	}
@@ -60,7 +78,7 @@ func (server *Server) getClient(clientId int) Client {
 
 // Gets the chatIds for TOs watching for a particular client.
 // TOs must have their telegram registered with the bot beforehand
-func (server *Server) getAllTOWatching(clientId int) []string {
+func (server *Server) getAllTOTracking(clientId int) []string {
 	rows, err := server.db.Query(
 		`SELECT Tofficers.telegram_chat_id
 		FROM Tofficers INNER JOIN Watch
@@ -87,19 +105,8 @@ func (server *Server) getAllTOWatching(clientId int) []string {
 	return TOChatIDs
 }
 
-/*
-	json message format for pi -> server
-
-	{
-		"clientId": int,
-		"message": "string",
-		"messageType" : "alert / message / complete"
-	}
-
-*/
-
 // /ext/api/client "POST"
-func (server *Server) PiSendTO(writer http.ResponseWriter,
+func (server *Server) extSendTele(writer http.ResponseWriter,
 	request *http.Request) {
 	type PiMessage struct {
 		ClientId    int    `json:"clientId"`
@@ -113,27 +120,47 @@ func (server *Server) PiSendTO(writer http.ResponseWriter,
 	if err != nil {
 		log.Println("PiSendTo(), decode json")
 		log.Println(err)
+		genericInternalServerErrorReply(writer)
 		return
 	}
 	log.Println(piMessage)
 
-	chatIDs := server.getAllTOWatching(piMessage.ClientId)
-	var templateFilePath string
-	switch piMessage.MessageType {
-	// TODO: handle alert message
+	chatIDs := server.getAllTOTracking(piMessage.ClientId)
+	if len(chatIDs) == 0 {
+		writeJson(writer, http.StatusInternalServerError, map[string]string{
+			"warning": "No TOs currently tracking this client.",
+		})
+		return
+	}
+
+	var message string
+	switch strings.ToLower(piMessage.MessageType) {
 	case "alert":
-		templateFilePath = "/templates/telegram/alert0.md"
-	// TODO: handle message
-	case "message":
-
-	// TODO: handle complete message
+		message = "⚠️ <b>ALERT!</b> ⚠️\n"
+	case "notification":
+		message = "🔔 <b>Notification!</b> 🔔\n"
 	case "complete":
-
+		message = "✅ <b>Complete!</b> ✅\n"
+	default:
+		message = ""
 	}
 
-	tmpl := template.Must(template.ParseFiles(templateFilePath))
+	message += piMessage.Message
+
+	errCount := 0
 	for _, chatId := range chatIDs {
-		server.sendTeleTemplate(chatId, tmpl)
+		err := server.sendTeleString(chatId, message)
+		if err != nil {
+			log.Println(err)
+			errCount++
+		}
 	}
-
+	if errCount == 0 {
+		message = "All messages successfuly sent."
+	} else {
+		message = "Some messages successfuly sent."
+	}
+	writeJson(writer, http.StatusOK, map[string]string{
+		"message": message,
+	})
 }

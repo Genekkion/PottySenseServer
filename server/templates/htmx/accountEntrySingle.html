@@ -1,12 +1,25 @@
-<tr id="account-entry-{{ .account.Id }}">
-    <th>{{ .account.Id }}</th>
-    <th>{{ .account.FirstName }}</th>
-    <th>{{ .account.LastName }}</th>
-    <th>{{ .account.Username }}</th>
-    <th>{{ .account.Telegram }}</th>
-    <th>{{ .account.UserType }}</th>
+<tr id="account-entry-{{ .Id }}">
+    <th>{{ .Id }}</th>
+    <th>{{ .FirstName }}</th>
+    <th>{{ .LastName }}</th>
+    <th>{{ .Username }}</th>
+    <th>{{ .UserType }}</th>
+
+    {{ if ne .UserType "admin" }}
+
     <th>
-        <button hx-get="/htmx/accounts/{{ .account.Id }}/edit" hx-target="#account-entry-{{ .account.Id }}" hx-swap="outerHTML"
-            hx-trigger="click">edit</button>
+        <form hx-post="/htmx/accounts/edit" hx-target="body" hx-swap="beforeend">
+            <button type="submit">edit</button>
+            <input type="hidden" name="id" value="{{ .Id }}" required readonly>
+            <input type="hidden" name="firstName" value="{{ .FirstName }}" required readonly>
+            <input type="hidden" name="lastName" value="{{ .LastName }}" required readonly>
+            <input type="hidden" name="username" value="{{ .Username }}" required readonly>
+            <input type="hidden" name="userType" value="{{ .UserType }}" required readonly>
+            {{ $.csrfField }}
+        </form>
+
     </th>
+
+    {{ end }}
+
 </tr>

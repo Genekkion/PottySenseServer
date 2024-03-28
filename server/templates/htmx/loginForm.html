@@ -1,0 +1,7 @@
+<form id="login-form" hx-post="/htmx/login" hx-target="this" hx-swap="outerHTML">
+    {{ .csrfField }}
+    <input class="login-form-field" type="text" name="username" placeholder="username" requried />
+    <input class="login-form-field" type="password" name="password" placeholder="password" required />
+    <button id="login-button" type="submit">Log In</button>
+    <p>{{ .errorMessage }}</p>
+</form>

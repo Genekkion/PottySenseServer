@@ -1,3 +1,4 @@
+{{ define "base" }}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -7,22 +8,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <meta name="author" content="G1T3">
-    <meta name="description" content="PottySense Portal">
+    <meta name="description" content="PottySense Web Client">
+
+    <link rel="stylesheet" href="/static/mui.min.css">
+    <script src="/static/mui.min.js"></script>
 
     <link rel="shortcut icon" href="#">
     <link rel="stylesheet" href="/static/styles.css">
     <script src="/static/htmx.min.js"></script>
+    <script src="/static/_hyperscript.min.js"></script>
 </head>
 
 <body>
     <h1 id="logo">PottySense</h1>
 
-    <div id="tab-panel" hx-target="this" hx-swap="outerHTML" hx-get="{{ index .hxGet }}" hx-trigger="load"
-        hx-replace-url="{{ index .hxReplaceUrl }}">
-    </div>
+    {{ template "body" . }}
 
 </body>
 
 <footer>
     <h5 id="copyright">Copyright © 2024 SMU CS460 AY2023-T2 G1T3</h5>
 </footer>
+
+{{ end }}

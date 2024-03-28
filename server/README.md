@@ -5,8 +5,12 @@
 This is the main, central http web server which acts as the central hub for communications between the system and users. It includes both the backend and frontend together through the use of HTMX.
 
 ## Table of Contents
+1. [Docker Setup]
+2. [Installation and Setup](#installation-and-setup)
+3. [External routes](#external-routes)
 
-1. [Installation and Setup](#installation-and-setup)
+## Docker Setup
+
 
 ## Installation and Setup
 
@@ -55,6 +59,7 @@ Follow the address as set in the `.env` file or as advertised in the terminal af
 1. **Check server health**
     - **Route:** `/ext`
     - **Method:** any
+    - **Header** `X-PS-Header`
     - **Body:** none
     - **Expected output:**
 
@@ -68,83 +73,35 @@ Follow the address as set in the `.env` file or as advertised in the terminal af
 
 ### PottySense API
 
-1. **Get the current client status**
+1. **Send Telegram message to TOs**
     - **Route:** `/ext/api`
-    - **Method:** `GET`
-    - **Body:** none
-    - **Expected output:**
-
-        Status code: `200`
-
+    - **Method:** `POST`
+    - **Header** `X-PS-Header`
+    - **Body:** 
         ```json
         {
             "clientId": 0,
-            "timeElapsed": 0
+            "message": "",
+            "messageType": ""
         }
         ```
-        `clientId` is the id of the client
-        
-        `timeElapsed` is the time duration in ***seconds*** since the session started
+        `messageType` accepts the following values: `alert`, `notification`, `complete`. Any other values will result in a regular message.
+
+    - **Expected output:**
+        ```json
+        {
+            "message": "All messages successfully sent."
+        }
+        {
+            "message": "Some messages successfully sent."
+        }
+        ```
+        The second response occurs when there is at least one failure when sending the telegram messages.
 
     - **Error responses:**
-        - `400 Bad Request` if the session has yet to be started.
+        - `500 Internal Server Error` if there are no TOs currently tracking this client in the system.
             ```json
             {
-               "error": "No session found.",
+               "warning": "No TOs currently tracking this client."
             }
             ```
-
-2. **Start the session**
-    - **Route:** `/api`
-    - **Method:** `POST`
-    - **Body:** `application/json`
-        ```json
-        {
-            "clientId": 0,
-            "urination": 0,
-            "defecation": 0
-        }
-        ```
-        
-        `clientId` is the id of the next client to enter the toilet
-        
-        `urination` is the time in ***seconds*** for the estimated time taken for this client to complete their urination
-
-        `defecation` is the time in ***seconds*** for the estimated time taken for this client to complete their defecation
-
-    - **Expected output:**
-
-        Status code: `200`
-
-        ```json
-        {
-            "message": "Timer 1 started.",
-        }
-        ```
-
-    - **Error responses:**
-        - `400 Bad Request` if the `Content-Type` has not been set to `application/json` or there are missing form values.
-            ```json
-            {
-                "error": "Mismatched form type.",
-            }
-
-            {
-                "error": "Missing clientId, urination or defecation in form data.",
-            }
-            ```      
-        
-3. **Terminate the session**
-    - **Route:** `/api`
-    - **Method:** `DELETE`
-    - **Body:** none
-
-    - **Expected output:**
-
-        Status code: `200`
-
-        ```json
-        {
-            "message": "Session terminated.",
-        }
-        ```

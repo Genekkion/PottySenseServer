@@ -1,0 +1,80 @@
+<div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
+	<div class="modal-underlay" _="on click trigger closeModal"></div>
+	<div class="modal-content">
+		<h1>New account</h1>
+
+		<form hx-post="/htmx/accounts/new" hx-target="body" hx-swap="beforeend">
+			<div class="mui-textfield mui-textfield--float-label">
+				<input id="modal-account-first-name" name="firstName" type="text" required
+					oninput="activateAccountSaveButton()"></input>
+				<label>First Name</label>
+			</div>
+
+			<div class=" mui-textfield mui-textfield--float-label">
+				<input id="modal-account-last-name" name="lastName" type="text" required
+					oninput="activateAccountSaveButton()"></input>
+				<label>Last Name</label>
+			</div>
+
+			<div class=" mui-textfield mui-textfield--float-label">
+				<input id="modal-account-username" name="username" type="text" required
+					oninput="activateAccountSaveButton()"></input>
+				<label>Username</label>
+			</div>
+
+			<div class=" mui-textfield mui-textfield--float-label">
+				<input id="modal-account-password1" name="password1" type="text" required
+					oninput="activateAccountSaveButton()"></input>
+				<label>Password</label>
+			</div>
+
+			<div class=" mui-textfield mui-textfield--float-label">
+				<input id="modal-account-password2" name="password2" type="text" required
+					oninput="activateAccountSaveButton()"></input>
+				<label>Re-enter Password</label>
+			</div>
+
+			<div>
+				<label for=" #account-select">Account Type:&nbsp;</label>
+				<select id="account-select" name="userType">
+					<option value="admin">admin</option>
+					<option selected="true" value="user">user</option>
+				</select>
+			</div>
+
+			<div class="mui-textfield mui-textfield--float-label">
+				<input name="telegram" type="text"></input>
+				<label>Telegram Username</label>
+			</div>
+			<p>Note: If the Telegram Username is included, the user will
+				have 10 minutes to register with <a href="https://t.me/PottySenseBot"><b>@PottySenseBot</b></a>.
+			</p>
+
+			{{ .csrfField }}
+
+			<button type="submit" id="new-account-save-button" _="on click trigger closeModal" disabled>Add</button>
+		</form>
+		<script>
+			var modalAccountFirstName = document.getElementById("modal-account-first-name");
+			var modalAccountLastName = document.getElementById("modal-account-last-name");
+			var modalAccountUsername = document.getElementById("modal-account-username");
+			
+			var modalAccountPassword1 = document.getElementById("modal-account-password1");
+			var modalAccountPassword2 = document.getElementById("modal-account-password2");
+			var newAccountSaveButton = document.getElementById("new-account-save-button");
+
+			function activateAccountSaveButton() {
+				newAccountSaveButton.disabled = !(
+					modalAccountFirstName.value &&
+					modalAccountLastName.value &&
+					modalAccountUsername.value &&
+					modalAccountPassword1.value &&
+					modalAccountPassword1.value ===
+					modalAccountPassword2.value
+				)
+			}
+
+		</script>
+
+	</div>
+</div>

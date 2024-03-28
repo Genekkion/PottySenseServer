@@ -28,9 +28,22 @@ func ParseFlags(db *sql.DB) {
 		if *adminFlag != "" && *userFlag != "" {
 			log.Println("Only one user can be created at a time using the -a and -u flags. Skipping operation.")
 		} else if *adminFlag != "" {
-			utils.CreateAdmin(db, *adminFlag, *passwordFlag)
+			err := utils.CreateUser(
+				db, "", "",
+				*adminFlag, *passwordFlag,
+				"admin")
+			if err != nil {
+				log.Fatalln(err)
+			}
 		} else if *userFlag != "" {
-			utils.CreateUser(db, *userFlag, *passwordFlag)
+			err := utils.CreateUser(
+				db, "", "",
+				*userFlag,
+				*passwordFlag,
+				"user")
+			if err != nil {
+				log.Fatalln(err)
+			}
 		} else {
 			log.Println("Password flag -p needs to be used with either -a or -u to create user. Skipping operation.")
 		}

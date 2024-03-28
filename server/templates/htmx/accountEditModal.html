@@ -1,0 +1,47 @@
+<div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
+	<div class="modal-underlay" _="on click trigger closeModal"></div>
+	<div class="modal-content">
+		<h1>Editing account:&nbsp;<b>{{ .id }}</b></h1>
+
+		<form hx-put="/htmx/accounts/edit" hx-target="#account-entry-{{ .id }}" hx-swap="outerHTML">
+			<div class="mui-textfield mui-textfield--float-label">
+				<input name="firstName" type="text" value="{{ .firstName }}" required></input>
+				<label>First Name</label>
+			</div>
+
+			<div class="mui-textfield mui-textfield--float-label">
+				<input name="lastName" type="text" value="{{ .lastName }}" required></input>
+				<label>Last Name</label>
+			</div>
+
+			<div class="mui-textfield mui-textfield--float-label">
+				<input name="username" type="text" value="{{ .username }}" required></input>
+				<label>Username</label>
+			</div>
+
+			<div>
+				<label for="#account-select">Account Type:&nbsp;</label>
+				<select id="account-select" name="userType">
+					<option {{ if eq .userType "admin" }} selected="true" {{ end }} value="admin">admin</option>
+					<option {{ if eq .userType "user" }} selected="true" {{ end }} value="user">user</option>
+				</select>
+			</div>
+
+			<div class="mui-textfield mui-textfield--float-label">
+				<input name="telegram" type="text"></input>
+				<label>Telegram Username</label>
+			</div>
+			<p>Note: Any input for Telegram Username will revoke the current
+				Telegram account tagged to the account! Only fill this field
+				if necessary.
+			</p>
+
+			<input type="hidden" name="id" value="{{ .id }}" readonly required>
+			{{ .csrfField }}
+
+			<button type="submit" id="edit-account-save-button" _="on click trigger closeModal">Save</button>
+		</form>
+
+
+	</div>
+</div>

@@ -7,21 +7,19 @@
     <th>{{ .Client.Gender }}</th>
     <th>{{ .Client.Urination }}</th>
     <th>{{ .Client.Defecation }}</th>
-    <th>{{ .Client.LastRecord }}</th>
+    <th>{{ .Client.PrettyLastRecord }}</th>
 
 
     <th>
-        <form hx-post="/htmx/clients/assign" hx-target="this" hx-swap="outerHTML">
+        <form hx-put="/htmx/clients" hx-target="this" hx-swap="outerHTML">
             {{ $.csrfField }}
             <input type="hidden" name="clientId" value="{{ .Client.Id }}">
-            {{ if .IsAssigned }}
-            <input type="hidden" name="toAssign" value="false">
-            <button class="entry-remove-button"
-                type="submit">Remove</button>
+            {{ if .IsTracking }}
+            <input type="hidden" name="toTrack" value="false">
+            <button class="entry-remove-button" type="submit">Remove</button>
             {{ else }}
-            <input type="hidden" name="toAssign" value="true">
-            <button class="entry-add-button"
-                type="submit">Add</button>
+            <input type="hidden" name="toTrack" value="true">
+            <button class="entry-add-button" type="submit">Add</button>
             {{ end }}
         </form>
     </th>

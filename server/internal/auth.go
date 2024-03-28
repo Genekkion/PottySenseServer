@@ -13,8 +13,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
-
 // For internal use, to check if the browser session is valid.
 // Returns a boolean value representing the validity of the session.
 func (server *Server) isValidSession(request *http.Request) bool {
@@ -62,44 +60,66 @@ func (server *Server) createSession(writer http.ResponseWriter,
 }
 
 // /login
+// Only allow "GET"
 func (server *Server) loginHandler(writer http.ResponseWriter, request *http.Request) {
 	switch request.Method {
 	case "GET":
-		loginPage(writer, request, server)
-	case "POST":
-		loginApi(writer, request, server)
+		if server.isValidSession(request) {
+			log.Println("Already logged in, redirecting to dashboard")
+			http.Redirect(writer, request, "/dashboard", http.StatusSeeOther)
+			return
+		}
+
+		tmpl := template.Must(
+			template.ParseFiles(
+				globals.BASE_TEMPLATE,
+				"./templates/htmx/loginPanel.html",
+			))
+		tmpl.ExecuteTemplate(writer, "base", map[string]interface{}{
+			csrf.TemplateTag: csrf.TemplateField(request),
+		})
+
 	default:
 		genericMethodNotAllowedReply(writer)
 	}
 }
 
-// /login "GET"
-func loginPage(writer http.ResponseWriter,
-	request *http.Request, server *Server) {
-	if server.isValidSession(request) {
-		log.Println("Already logged in, redirecting to dashboard")
-		http.Redirect(writer, request, "/dashboard", http.StatusSeeOther)
-		return
+// /htmx/login
+func (server *Server) htmxLoginHandler(writer http.ResponseWriter,
+	request *http.Request) {
+	switch request.Method {
+	case "GET":
+		server.htmxLoginPanel(writer, request)
+	case "POST":
+		server.htmxLoginForm(writer, request)
+	default:
+		genericMethodNotAllowedReply(writer)
 	}
-
-	tmpl := template.Must(template.ParseFiles(globals.BASE_TEMPLATE))
-	tmpl.Execute(writer, map[string]interface{}{
-		csrf.TemplateTag: csrf.TemplateField(request),
-		"hxGet":          "/htmx/login",
-		"hxReplaceUrl":   "/login",
-	})
 }
 
-// TODO: htmx???
-// /login "POST"
+// /htmx/login "GET"
+func (server *Server) htmxLoginPanel(writer http.ResponseWriter,
+	request *http.Request) {
+	switch request.Method {
+	case http.MethodGet:
+		tmpl := template.Must(template.ParseFiles("./templates/htmx/loginPanel.html"))
+		tmpl.Execute(writer, map[string]interface{}{
+			csrf.TemplateTag: csrf.TemplateField(request),
+		})
+	default:
+		genericMethodNotAllowedReply(writer)
+	}
+}
+
+// /htmx/login "POST"
 // Request should have form values:
 // username, password
-func loginApi(writer http.ResponseWriter,
-	request *http.Request, server *Server) {
+func (server *Server) htmxLoginForm(writer http.ResponseWriter,
+	request *http.Request) {
 
 	err := request.ParseForm()
 	if err != nil {
-		log.Println("loginApi(), parse form")
+		log.Println("htmxLoginForm(), parse form")
 		log.Println(err)
 		return
 	}
@@ -124,12 +144,19 @@ func loginApi(writer http.ResponseWriter,
 	)
 
 	if err == sql.ErrNoRows {
-		writeJson(writer, http.StatusUnauthorized,
-			map[string]string{
-				"error": "invalid username",
-			},
-		)
+		tmpl := template.Must(template.ParseFiles("./templates/htmx/loginForm.html"))
+		tmpl.Execute(writer, map[string]interface{}{
+			csrf.TemplateTag: csrf.TemplateField(request),
+			"errorMessage":   "Invalid username!",
+		})
 		return
+	} else if err != nil {
+		tmpl := template.Must(template.ParseFiles("./templates/htmx/loginForm.html"))
+		tmpl.Execute(writer, map[string]interface{}{
+			csrf.TemplateTag: csrf.TemplateField(request),
+			"errorMessage":   "The server is experiencing issues right now, please try again later",
+		})
+		log.Println(err)
 	}
 
 	err = bcrypt.CompareHashAndPassword(
@@ -137,12 +164,11 @@ func loginApi(writer http.ResponseWriter,
 		[]byte(password),
 	)
 	if err != nil {
-		log.Println(err)
-		writeJson(writer, http.StatusUnauthorized,
-			map[string]string{
-				"error": "invalid password",
-			},
-		)
+		tmpl := template.Must(template.ParseFiles("./templates/htmx/loginForm.html"))
+		tmpl.Execute(writer, map[string]interface{}{
+			csrf.TemplateTag: csrf.TemplateField(request),
+			"errorMessage":   "Invalid password!",
+		})
 		return
 	}
 
@@ -153,7 +179,7 @@ func loginApi(writer http.ResponseWriter,
 			TelegramChatId: telegramChatId,
 			UserType:       userType,
 		})
-	http.Redirect(writer, request, "/dashboard", http.StatusSeeOther)
+	writer.Header().Set("HX-Redirect", "/track")
 }
 
 // /logout

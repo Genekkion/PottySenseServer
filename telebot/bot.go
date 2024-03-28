@@ -76,7 +76,7 @@ func (bot *Bot) Run() {
 		switch strings.ToLower(update.Message.Command()) {
 		case "start":
 			message.Text = bot.botCommandStart(update)
-		case "all":
+		case "clients":
 			message.Text = bot.authWrapper(bot.botCommandGetAllClients)(update)
 		case "current":
 			message.Text = bot.authWrapper(bot.botCommandGetCurrentClients)(update)
@@ -88,7 +88,8 @@ func (bot *Bot) Run() {
 			message.Text = bot.authWrapper(bot.botCommandTrackClient)(update)
 		case "untrack":
 			message.Text = bot.authWrapper(bot.botCommandUnTrackClient)(update)
-
+		case "help":
+			message.Text = bot.authWrapper(bot.botCommandHelp)(update)
 		default:
 			message.Text = "Error, command not found. Please use /help to get the list of available commands."
 
@@ -416,4 +417,16 @@ func (bot *Bot) botCommandUnTrackClient(update tgbotapi.Update) string {
 		return GENERIC_ERROR_MESSAGE
 	}
 	return "Successfully removed from your tracking list!"
+}
+
+func (bot *Bot) botCommandHelp(update tgbotapi.Update) string {
+	message := "<b>List of supported commands:</b>\n"
+	message += "<b>1.</b> /start - Register Telegram account\n"
+	message += "<b>2.</b> /clients - Get all clients\n"
+	message += "<b>3.</b> /current - Get all currently tracked clients\n"
+	message += "<b>4.</b> /id - Get the client with the id supplied\n"
+	message += "<b>5.</b> /track - Start tracking the client with the id supplied\n"
+	message += "<b>6.</b> /untrack - Stop tracking the client with the id supplied\n"
+	message += "<b>7.</b> /help - List all available commands\n"
+	return message
 }

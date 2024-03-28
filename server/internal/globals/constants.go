@@ -14,4 +14,10 @@ const (
 	// The threshold for when to display the
 	// last record for toilet usage
 	LAST_RECORD_THRESHOLD = 6 // in hours
+
+	// Default base dashboard route
+	DEFAULT_DASHBOARD_ROUTE = "/track"
+
+	// Secret header name
+	SECRET_HEADER = "X-PS-Header"
 )

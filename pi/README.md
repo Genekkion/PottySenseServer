@@ -53,6 +53,7 @@ Follow the address as advertised in the cli.
 1. **Check server health**
     - **Route:** `/`
     - **Method:** any
+    - **Header** `X-PS-Header`
     - **Body:** none
     - **Expected output:**
 
@@ -69,6 +70,7 @@ Follow the address as advertised in the cli.
 1. **Get the current client status**
     - **Route:** `/api`
     - **Method:** `GET`
+    - **Header** `X-PS-Header`
     - **Body:** none
     - **Expected output:**
 
@@ -95,6 +97,7 @@ Follow the address as advertised in the cli.
 2. **Start the session**
     - **Route:** `/api`
     - **Method:** `POST`
+    - **Header** `X-PS-Header`
     - **Body:** `application/json`
         ```json
         {
@@ -135,6 +138,7 @@ Follow the address as advertised in the cli.
 3. **Terminate the session**
     - **Route:** `/api`
     - **Method:** `DELETE`
+    - **Header** `X-PS-Header`
     - **Body:** none
 
     - **Expected output:**

@@ -58,28 +58,23 @@ func (server *Server) addInternalRoutes() {
 	router.HandleFunc("/", server.indexHandler)
 
 	router.HandleFunc("/login", server.loginHandler)
-	router.HandleFunc("/htmx/login", server.htmxLoginPanel)
+	router.HandleFunc("/htmx/login", server.htmxLoginHandler)
 
 	router.HandleFunc("/logout", server.logout)
 
-	router.HandleFunc("/dashboard", server.authWrapper(server.dashboardHandler))
-	router.HandleFunc("/htmx/dashboard", server.authWrapper(server.htmxDashboardPanel))
+	router.HandleFunc("/track", server.authWrapper(server.dashboardTrack))
+	router.HandleFunc("/htmx/track", server.authWrapper(server.htmxTrackingHandler))
 
-	// TODO: Change to /htmx/track
-	// TODO: Add /track route
-	router.HandleFunc("/htmx/current", server.authWrapper(server.htmxTrackingHandler))
-	// router.HandleFunc("/htmx/current/clients", server.authWrapper(server.htmxCurrentClients))
-
-	// TODO: Add /clients route
+	router.HandleFunc("/clients", server.authWrapper(server.dashboardClients))
 	router.HandleFunc("/htmx/clients", server.authWrapper(server.htmxClients))
 	router.HandleFunc("/htmx/clients/new", server.authWrapper(server.htmxClientNewHandler))
 
-	// TODO: Add /accounts route
+	router.HandleFunc("/accounts", server.authWrapper(server.dashboardAccounts))
 	router.HandleFunc("/htmx/accounts", server.authWrapper(server.htmxAccountsHandler))
 	router.HandleFunc("/htmx/accounts/edit", server.authWrapper(server.htmxAccountsEditHandler))
-	// TODO: Add /htmx/accounts/new, also modal
+	router.HandleFunc("/htmx/accounts/new", server.authWrapper(server.htmxAccountsNewHandler))
 
-	// TODO: add /settings route
+	router.HandleFunc("/settings", server.authWrapper(server.dashboardSettings))
 	router.HandleFunc("/htmx/settings", server.authWrapper(server.htmxSettingsHandler))
 	router.HandleFunc("/htmx/settings/password", server.authWrapper(server.htmxSettingsPasswordHandler))
 }
@@ -119,22 +114,13 @@ func writeJson(writer http.ResponseWriter, statusCode int, value any) error {
 // Handles the "/" route
 func (server *Server) indexHandler(writer http.ResponseWriter,
 	request *http.Request) {
-	var hxGet string
-	var hxReplaceUrl string
 	if server.isValidSession(request) {
-		hxGet = "/htmx/dashboard"
-		hxReplaceUrl = "/dashboard"
+		http.Redirect(writer, request,
+			globals.DEFAULT_DASHBOARD_ROUTE, http.StatusSeeOther)
 	} else {
-		hxGet = "/htmx/login"
-		hxReplaceUrl = "/login"
+		http.Redirect(writer, request,
+			"/login", http.StatusSeeOther)
 	}
-
-	tmpl := template.Must(template.ParseFiles(globals.BASE_TEMPLATE))
-	tmpl.Execute(writer, map[string]interface{}{
-		csrf.TemplateTag: csrf.TemplateField(request),
-		"hxGet":          hxGet,
-		"hxReplaceUrl":   hxReplaceUrl,
-	})
 }
 
 // Sends telegram message to a specified chatId.
@@ -152,8 +138,9 @@ func (server *Server) sendTeleTemplate(chatId string,
 
 	body, err := json.Marshal(
 		map[string]string{
-			"chat_id": chatId,
-			"text":    stringBuffer.String(),
+			"chat_id":    chatId,
+			"text":       stringBuffer.String(),
+			"parse_mode": "HTML",
 		},
 	)
 	if err != nil {
@@ -172,8 +159,9 @@ func (server *Server) sendTeleTemplate(chatId string,
 func (server *Server) sendTeleString(chatId string, message string) error {
 	body, err := json.Marshal(
 		map[string]string{
-			"chat_id": chatId,
-			"text":    message,
+			"chat_id":    chatId,
+			"text":       message,
+			"parse_mode": "HTML",
 		},
 	)
 	if err != nil {
@@ -208,9 +196,16 @@ func genericInternalServerErrorReply(writer http.ResponseWriter) {
 	})
 }
 
-// Generic reply json for unauthorized access
+// Generic reply json for forbbiden
 func genericForbiddenReply(writer http.ResponseWriter) {
 	writeJson(writer, http.StatusForbidden, map[string]string{
 		"error": "Forbidden.",
+	})
+}
+
+// Generic reply json for unauthorized access
+func genericUnauthorizedReply(writer http.ResponseWriter) {
+	writeJson(writer, http.StatusUnauthorized, map[string]string{
+		"error": "Unauthorized.",
 	})
 }

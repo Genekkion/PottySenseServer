@@ -1,29 +1,25 @@
+{{ define "body" }}
+
 <h3 id="log-user">Logged in as: {{ .to.Username }} [{{ .to.Id }}]</h3>
 
 <div id="tab-list" role="tablist" hx-target="#tab-panel" _="on htmx:afterOnLoad set @aria-selected of 
         <[aria-selected=true]/> to false tell the 
         target take .selected set @aria-selected to true">
+    
+        {{ range .tabListEntries }}
 
-    <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="true" hx-get="/htmx/current"
-        hx-swap="outerHTML">current
+    {{ if or (ne .Id "tab-accounts") (eq $.to.UserType "admin") }}
+    <button id="{{ .Id }}" role="tab" class="main-tab" aria-controls="tab-content" hx-get="{{ .HtmxPath }}"
+        hx-swap="outerHTML" {{ if eq $.redirectUrl .RedirectUrl }} aria-selected="true" {{ else }} aria-selected="false"
+        {{ end }} hx-push-url="{{ .RedirectUrl }}" hx-replace-url="true">{{ .Title }}
     </button>
-
-    <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/clients"
-        hx-swap="outerHTML">clients
-    </button>
-    {{ if eq .to.UserType "admin" }}
-    <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/accounts"
-        hx-swap="outerHTML">accounts
-    </button>
-    {{ else }}
-    <h3>unauth</h3>
     {{ end }}
-    <button role="tab" class="main-tab" aria-controls="tab-content" aria-selected="false" hx-get="/htmx/settings"
-        hx-swap="outerHTML">settings
-    </button>
+
+    {{ end }}
+
 
     <form class="main-tab" action="/logout" method="post">
-        {{ index .csrfField }}
+        {{ .csrfField }}
         <button id="logout-button" type="submit">logout
         </button>
     </form>
@@ -32,5 +28,8 @@
 
 
 
-<div id="tab-panel" role="tabpanel" hx-target="this" hx-get="/htmx/current" hx-swap="outerHTML" hx-trigger="load">
+<div id="tab-panel" role="tabpanel" hx-target="this" hx-get="{{ .htmxPath }}" hx-swap="outerHTML" hx-trigger="load"
+    hx-push-url="{{ .redirectUrl }}" hx-replace-url="true">
 </div>
+
+{{ end }}

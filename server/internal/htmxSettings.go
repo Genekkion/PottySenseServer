@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/genekkion/PottySenseServer/internal/utils"
 	"github.com/gorilla/csrf"
@@ -28,15 +29,13 @@ func (server *Server) htmxSettingsPanel(writer http.ResponseWriter,
 	request *http.Request) {
 	to := server.getTOFromCookie(request)
 
-	var firstName string
-	var lastName string
 	err := server.db.QueryRow(
 		`SELECT first_name, last_name
         FROM TOfficers
 		WHERE ID = $1
 		`, to.Id).Scan(
-		&firstName,
-		&lastName,
+		&to.FirstName,
+		&to.LastName,
 	)
 
 	// TODO: Change settings form
@@ -54,14 +53,10 @@ func (server *Server) htmxSettingsPanel(writer http.ResponseWriter,
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
 		"csrfToken":      csrf.Token(request),
-		"account": TO{
-			FirstName: firstName,
-			LastName:  lastName,
-		},
+		"account":        to,
 	})
 }
 
-// TODO: Separate change tele and other details form
 // /htmx/settings "PUT"
 func (server *Server) htmxSettingsDetailsSave(writer http.ResponseWriter,
 	request *http.Request) {
@@ -70,19 +65,38 @@ func (server *Server) htmxSettingsDetailsSave(writer http.ResponseWriter,
 	firstName := request.FormValue("firstName")
 	lastName := request.FormValue("lastName")
 
-	db := server.db
-	_, err := db.Exec(
-		`UPDATE TOfficers SET
-        first_name = $1,
-        last_name = $2,
-        WHERE id = $3
-		`, firstName, lastName, to.Id)
+	if firstName != "" || lastName != "" {
+		_, err := server.db.Exec(
+			`UPDATE TOfficers SET
+				first_name = $1,
+				last_name = $2
+			WHERE id = $3
+			`, firstName, lastName, to.Id)
 
-	if err != nil {
-		log.Println("htmxSettingsPanel(), db update")
-		log.Println(err)
-		genericInternalServerErrorReply(writer)
-		return
+		if err != nil {
+			log.Println("htmxSettingsDetailsSave(), db update")
+			log.Println(err)
+			genericInternalServerErrorReply(writer)
+			return
+		}
+		log.Println("updated names")
+	}
+
+	if request.FormValue("telegram") != "" {
+		err := server.redisStorage.Set(
+			request.Context(),
+			request.FormValue("telegram"),
+			to.Id,
+			time.Minute*10,
+		).Err()
+
+		if err != nil {
+			log.Println("htmxSettingsDetailsSave() - set redis")
+			log.Println(err)
+			genericInternalServerErrorReply(writer)
+			return
+		}
+		log.Println("updated tele")
 	}
 
 	// TODO: Change to actual template or something else
@@ -118,7 +132,6 @@ func (server *Server) htmxSettingsPasswordForm(writer http.ResponseWriter,
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/settingsPassword.html"))
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
-		"status":         "nil",
 	})
 }
 
@@ -155,8 +168,7 @@ func (server *Server) htmxSettingsPasswordChange(writer http.ResponseWriter,
 	if err != nil {
 		tmpl.Execute(writer, map[string]interface{}{
 			csrf.TemplateTag: csrf.TemplateField(request),
-			// TODO: change return templates
-			"status": "old",
+			"status":         "old",
 		})
 		return
 	}
@@ -172,17 +184,14 @@ func (server *Server) htmxSettingsPasswordChange(writer http.ResponseWriter,
         WHERE id = $2`,
 		newPasswordHash, to.Id)
 
-	// TODO: change status return?
+	status := "ok"
 	if err != nil {
-		tmpl.Execute(writer, map[string]interface{}{
-			csrf.TemplateTag: csrf.TemplateField(request),
-			"status":         "error",
-		})
-		return
+
+		status = "error"
 	}
 
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
-		"status":         "ok",
+		"status":         status,
 	})
 }

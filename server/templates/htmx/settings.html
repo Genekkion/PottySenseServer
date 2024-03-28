@@ -1,26 +1,35 @@
 <div id="tab-panel" role="tabpanel">
     <h3>Account details</h3>
 
-    <form id="settings-account-detail-form" class="settings-form" hx-post="htmx/settings/details" hx-target="this"
+    <form id="settings-account-detail-form" class="settings-form" hx-put="htmx/settings" hx-target="this"
         hx-swap="beforeend">
         {{ .csrfField }}
+
+        {{ if eq .account.UserType "admin" }}
         <div class="settings-form-field">
             <label for="settings-first-name">First name:</label>
             <input id="settings-first-name" name="firstName" type="text" placeholder="First name"
-                value="{{ .account.FirstName }}" required>
+                value="{{ .account.FirstName }}" >
         </div>
         <div class="settings-form-field">
             <label for="settings-last-name">Last name:</label>
             <input id="settings-last-name" name="lastName" type="text" placeholder="Last name"
-                value="{{ .account.LastName }}" required>
+                value="{{ .account.LastName }}" >
         </div>
+
+        {{ end }}
+
         <div class="settings-form-field">
             <label for="settings-telegram">Telegram:</label>
-            <input id="settings-telegram" name="telegram" type="text" placeholder="Telegram"
-                value="{{ .account.Telegram }}">
+            <input id="settings-telegram" name="telegram" type="text" placeholder="Telegram">
         </div>
-        <span>After editing your Telegram handle, please start a chat with
-            <a href="https://t.me/PottySenseBot"><b>@PottySenseBot</b></a> to verify it.</span>
+        <p>Note: Any input for Telegram Username will revoke the current
+            Telegram account tagged to the account! Only fill this field
+            if necessary.
+        </p>
+        <p>After editing your Telegram handle, please start a chat with
+            <a href="https://t.me/PottySenseBot"><b>@PottySenseBot</b></a>
+            within the next 10 minutes to verify it.</p>
         <button type="submit">Save</button>
     </form>
 

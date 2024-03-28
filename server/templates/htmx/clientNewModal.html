@@ -1,0 +1,65 @@
+<div id="modal" _="on closeModal add .closing then wait for animationend then remove me">
+	<div class="modal-underlay" _="on click trigger closeModal"></div>
+	<div class="modal-content">
+		<h1>Add new client</h1>
+
+		<form hx-post="/htmx/clients/new" hx-target="#modal" hx-swap="beforeend">
+			<div class="mui-textfield mui-textfield--float-label">
+				<input id="modal-client-first-name" name="firstName" type="text" value="{{ .firstName }}" required
+					oninput="enableAddClientButton()"></input>
+				<label>First Name</label>
+			</div>
+
+			<div class="mui-textfield mui-textfield--float-label">
+				<input id="modal-client-last-name" name="lastName" type="text" value="{{ .lastName }}" required
+					oninput="enableAddClientButton()"></input>
+				<label>Last Name</label>
+			</div>
+
+			<div>
+				<label for="#client-gender">Gender:&nbsp;</label>
+				<select id="modal-client-gender" name="gender" required>
+					<option value="male">male</option>
+					<option value="female">female</option>
+				</select>
+			</div>
+
+			<div class="mui-textfield mui-textfield--float-label">
+				<input id="modal-client-urination" name="urination" type="number" value="300" required
+					oninput="enableAddClientButton()"></input>
+				<label>Urination time (seconds)</label>
+			</div>
+
+			<div class="mui-textfield mui-textfield--float-label">
+				<input id="modal-client-defecation" name="defecation" type="number" value="600" required
+					oninput="enableAddClientButton()"></input>
+				<label>Defecation time (seconds)</label>
+			</div>
+
+			{{ .csrfField }}
+
+			<button type="submit" id="newClientSaveButton" _="on click trigger closeModal" disabled>Add</button>
+		</form>
+		<script>
+			var modalClientFirstName = document.getElementById("modal-client-first-name");
+			var modalClientLastName = document.getElementById("modal-client-last-name");
+			var modalClientUrination = document.getElementById("modal-client-urination");
+			var modalClientDefecation = document.getElementById("modal-client-defecation");
+
+			var saveClientButton = document.getElementById("newClientSaveButton");
+
+			function enableAddClientButton() {
+				console.log(modalClientFirstName.value.trim())
+				console.log(modalClientLastName.value.trim())
+				console.log(modalClientUrination.value)
+				console.log(modalClientDefecation.value)
+				saveClientButton.disabled = !(
+					modalClientFirstName.value.trim() &&
+					modalClientLastName.value.trim() &&
+					modalClientUrination.value &&
+					modalClientDefecation.value)
+			}
+		</script>
+
+	</div>
+</div>
