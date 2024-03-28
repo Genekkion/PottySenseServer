@@ -1,5 +1,3 @@
-flask
+quart
 python-dotenv
-Flask[async]
-requests
-aiohttp
+httpx

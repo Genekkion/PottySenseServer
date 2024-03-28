@@ -10,6 +10,7 @@ import (
 )
 
 func NewRedisStorage(redisAddr string, redisPassword string) *redis.Client {
+	log.Println("redisAddr", redisAddr)
 	return redis.NewClient(&redis.Options{
 		Addr:     redisAddr,
 		Password: redisPassword,
@@ -21,12 +22,11 @@ var (
 	REQUIRED_ENV = []string{
 		"TELEGRAM_BOT_TOKEN",
 		"REDIS_ADDR",
-		"REDIS_PASSWORD",
 	}
 )
 
 func main() {
-	godotenv.Load(".env")
+	godotenv.Load("../.env")
 
 	for _, env := range REQUIRED_ENV {
 		if os.Getenv(env) == "" {
@@ -38,7 +38,7 @@ func main() {
 	redisAddr := os.Getenv("REDIS_ADDR")
 	redisPassword := os.Getenv("REDIS_PASSWORD")
 
-	db := NewSqliteStorage("../sqlite.db")
+	db := NewSqliteStorage(os.Getenv("DATABASE_PATH"))
 	redisCache := NewRedisStorage(redisAddr, redisPassword)
 	err := redisCache.Ping(context.Background()).Err()
 	if err != nil {

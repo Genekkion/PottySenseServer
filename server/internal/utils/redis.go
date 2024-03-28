@@ -10,10 +10,14 @@ import (
 )
 
 func NewRedisSessionStore() *redistore.RediStore {
-	store, err := redistore.NewRediStore(10, "tcp", ":6379",
-		os.Getenv("REDIS_PASSWORD"), []byte(os.Getenv("REDIS_SECRET")))
+	store, err := redistore.NewRediStore(10, "tcp",
+		os.Getenv("REDIS_ADDR"),
+		os.Getenv("REDIS_PASSWORD"),
+		[]byte(os.Getenv("REDIS_SECRET")),
+	)
+	log.Println(os.Getenv("REDIS_ADDR"))
 	if err != nil {
-		log.Println("db.go - newRedisStore()")
+		log.Println("redis.go - newRedisStore()")
 		log.Fatal(err)
 	}
 	store.SetMaxAge(86400 * 30)
@@ -33,7 +37,5 @@ func NewRedisStorage() *redis.Client {
 		DB:       0,
 	})
 
-
 	return client
 }
-

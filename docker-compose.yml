@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: ./server/Dockerfile
+    ports:
+      - "3005:3000"
+    volumes:
+      - ./sqlite.db:/app/sqlite.db  # Mount SQLite file into server container
+    env_file:
+      - .env
+    networks:
+      - mynetwork
+
+  telebot:
+    build:
+      context: .
+      dockerfile: ./telebot/Dockerfile
+    volumes:
+      - ./sqlite.db:/app/sqlite.db  # Mount SQLite file into telebot container
+    env_file:
+      - .env
+    networks:
+      - mynetwork
+
+  redis:
+    image: redis
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge

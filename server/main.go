@@ -7,11 +7,12 @@ import (
 	"github.com/genekkion/PottySenseServer/internal"
 	"github.com/genekkion/PottySenseServer/internal/globals"
 	"github.com/genekkion/PottySenseServer/internal/utils"
+	"github.com/joho/godotenv"
 )
 
 func main() {
 	globals.RUN = true
-	utils.SetEnv("../.env")
+	godotenv.Load("../.env")
 
 	redisSessionStore := utils.NewRedisSessionStore()
 	defer redisSessionStore.Close()

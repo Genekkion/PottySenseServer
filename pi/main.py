@@ -1,11 +1,10 @@
 import asyncio
 import time
 from functools import wraps
-from flask import Flask, request, jsonify, current_app
+from quart import Quart, request, jsonify
 import os
 from dotenv import load_dotenv
-import requests as rq
-import aiohttp
+import httpx
 
 load_dotenv()
 
@@ -25,14 +24,30 @@ MESSAGE_TYPE_COMPLETE = "complete"
 START_SESSION_THRESHOLD = 300  # 300s, 5 minutes
 
 
+async def test_server_connection(url: str, secret_header: str):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            url,
+            headers={
+                "X-PS-Header": secret_header,
+            },
+        )
+        if response.status_code == HTTP_STATUS_OK:
+            print("Test connection with server successful.")
+        else:
+            print(
+                "WARNING: Error during test connection with server. Please check for connection issues!"
+            )
+
+
 # Initial setup of flask app
 def create_app():
     SECRET_HEADER = os.getenv("SECRET_HEADER")
-    if SECRET_HEADER is None:
+    if SECRET_HEADER is None or SECRET_HEADER == "":
         print("Required env variable SECRET_HEADER not set. Exiting.")
         exit()
     SERVER_ADDR = os.getenv("SERVER_ADDR")
-    if SERVER_ADDR is None:
+    if SERVER_ADDR is None or SERVER_ADDR == "":
         print("Required env variable SERVER_ADDR not set. Exiting.")
         exit()
     start_session_threshold = os.getenv("START_SESSION_THRESHOLD")
@@ -49,39 +64,26 @@ def create_app():
                 "Invalid value for env variable START_SESSION_THRESHOLD, defaulting to 300s."
             )
 
-    SERVER_ADDR += "/ext"
-    try:
-        if rq.get(SERVER_ADDR).status_code == HTTP_STATUS_OK:
-            print("Test connection with server successful.")
-        else:
-            print(
-                "WARNING: Error during test connection with server. Please check for connection issues!"
-            )
-    except rq.RequestException as err:
-        print(
-            "WARNING: Error during test connection with server. Please check for connection issues!"
-        )
-        print("Error: ", err)
+    test_server_connection(SERVER_ADDR + "/ext", SECRET_HEADER)
 
-    app = Flask(__name__)
+    app = Quart(__name__)
 
-    # Add global variables to app
-    with app.app_context():
-        # Constants
-        current_app.config["SECRET_HEADER"] = SECRET_HEADER
-        current_app.config["SERVER_ADDR"] = SERVER_ADDR + "/api"
-        current_app.config["HEADER_CONFIG"] = {
-            "Content-Type": "application/json",
-            "X-PS-Header": SECRET_HEADER,
-        }
+    # Constants
+    app.config["SECRET_HEADER"] = SECRET_HEADER
+    app.config["SERVER_ADDR"] = SERVER_ADDR + "/ext/api"
+    app.config["HEADER_CONFIG"] = {
+        "Content-Type": "application/json",
+        "X-PS-Header": SECRET_HEADER,
+    }
 
-        # Default values for numerical values will be -1
-        current_app.config["timestamp_1"] = -1
-        current_app.config["timestamp_2"] = -1
-        current_app.config["current_client_id"] = -1
-        current_app.config["time_urination"] = -1
-        current_app.config["time_defecation"] = -1
-        current_app.config["async_tasks"] = []
+    # Default values for numerical values will be -1
+    app.config["timestamp_1"] = -1
+    app.config["timestamp_2"] = -1
+    app.config["current_client_id"] = -1
+    app.config["time_urination"] = -1
+    app.config["time_defecation"] = -1
+    app.config["async_tasks"] = []
+
     return app
 
 
