@@ -115,7 +115,8 @@ func (bot *Bot) botCommandStart(update tgbotapi.Update) string {
 		`, update.Message.Chat.ID).Scan(&toID)
 	if err == nil {
 		return "Your account has already been registered with PottySense!"
-	} else {
+	} else if err != sql.ErrNoRows {
+		// Problems connecting to DB
 		log.Fatalln(err)
 	}
 
@@ -126,14 +127,14 @@ func (bot *Bot) botCommandStart(update tgbotapi.Update) string {
 	// the info. Means user needs to go on platform
 	// to register first
 	if err != nil {
-		log.Println(err)
+		log.Println("botCommandStart(), redis get")
 		log.Println(err)
 		return "Unauthorized user"
 	}
 
 	toID, err = strconv.Atoi(toIDStr)
 	if err != nil {
-		log.Println("authWrapper(), atoi")
+		log.Println("botCommandStart(), atoi")
 		log.Println(err)
 		return "Error processing your request right now, please try again later!"
 	}
@@ -144,7 +145,7 @@ func (bot *Bot) botCommandStart(update tgbotapi.Update) string {
 			WHERE id = $2
 			`, update.Message.Chat.ID, toID)
 	if err != nil {
-		log.Println("authWrapper(), update sql")
+		log.Println("botCommandStart(), update sql")
 		log.Println(err)
 		return "Error processing your request right now, please try again later!"
 	}
@@ -255,7 +256,7 @@ func (bot *Bot) botCommandGetCurrentClients(update tgbotapi.Update) string {
 }
 
 func getTimeElapsedPretty(timeRecord time.Time) string {
-	elapsedTime := time.Now().Sub(timeRecord)
+	elapsedTime := time.Since(timeRecord)
 	return fmt.Sprintf("%02d:%02d",
 		int(elapsedTime.Hours()),
 		int(elapsedTime.Minutes())%60,

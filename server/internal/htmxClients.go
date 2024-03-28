@@ -2,118 +2,106 @@ package internal
 
 import (
 	"database/sql"
-	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/genekkion/PottySenseServer/internal/globals"
+	"github.com/genekkion/PottySenseServer/internal/utils"
 	"github.com/gorilla/csrf"
 )
 
+// /htmx/clients
 func (server *Server) htmxClients(writer http.ResponseWriter,
 	request *http.Request) {
-	if request.Method != "GET" {
-		writeJson(writer, http.StatusBadRequest,
-			map[string]interface{}{
-				"error": "invalid request method",
-			},
-		)
-		return
+	switch request.Method {
+	case http.MethodGet:
+		server.htmxClientsPanel(writer, request)
+	case http.MethodPost:
+		server.htmxClientSearch(writer, request)
+	case http.MethodPut:
+		server.htmxClientTrack(writer, request)
+	default:
+		genericMethodNotAllowedReply(writer)
 	}
+}
 
-	_, err := server.secureHtmx(writer, request)
-	if err != nil {
-		return
-	}
-
+// /htmx/clients "GET"
+func (server *Server) htmxClientsPanel(writer http.ResponseWriter,
+	request *http.Request) {
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/clients.html"))
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
 		"csrfToken":      csrf.Token(request),
 	})
+
 }
 
-type ClientEntry struct {
-	Client     Client
-	IsAssigned bool
-}
-
-func (server *Server) htmxClientEntry(writer http.ResponseWriter,
+// /htmx/clients "POST"
+func (server *Server) htmxClientSearch(writer http.ResponseWriter,
 	request *http.Request) {
-	if request.Method != "POST" {
-		writeJson(writer, http.StatusBadRequest,
-			map[string]interface{}{
-				"error": "invalid request method",
-			},
-		)
-		return
-	}
-
-	to, err := server.secureHtmx(writer, request)
+	err := request.ParseForm()
 	if err != nil {
-		return
-	}
-
-	searchQuery := request.FormValue("search") + "%"
-	db := server.dbStorage
-	rows, err := db.Query(
-		`SELECT Clients.id, Clients.first_name, Clients.last_name,
-        Clients.gender, Clients.urination, Clients.defecation,
-        Clients.last_record, Watch.to_id 
-        FROM Clients LEFT JOIN Watch
-        ON Clients.id = Watch.client_id
-        AND Watch.to_id = $1
-        WHERE 
-        first_name LIKE $2 COLLATE NOCASE OR
-        last_name LIKE $3 COLLATE NOCASE`,
-		to.Id, searchQuery, searchQuery)
-	if err != nil {
-		writeJson(writer, http.StatusInternalServerError,
-			map[string]string{
-				"error": "internal server error",
-			},
-		)
+		log.Println("htmxClientSearch() - parse form")
 		log.Println(err)
+		genericInternalServerErrorReply(writer)
 		return
 	}
+
+	to := server.getTOFromCookie(request)
+
+	// Add wildcard for autocomplete
+	searchQuery := request.FormValue("search") + "%"
+	rows, err := server.db.Query(
+		`SELECT Clients.id, Clients.first_name,
+			Clients.last_name, Clients.gender,
+			Clients.urination, Clients.defecation,
+        	Clients.last_record, Watch.to_id 
+        FROM Clients LEFT JOIN Watch
+        	ON Clients.id = Watch.client_id
+        		AND Watch.to_id = $1
+        WHERE first_name LIKE $2 COLLATE NOCASE
+			OR last_name LIKE $2 COLLATE NOCASE
+		`, to.Id, searchQuery)
+	if err != nil {
+		log.Println("htmxClientSearch() - db query")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
+		return
+	}
+
+	type ClientEntry struct {
+		Client     Client
+		IsAssigned bool
+	}
+
 	var entries []ClientEntry
-	// caser := cases.Title(language.English)
 	for rows.Next() {
 		var client Client
+		// Needs to be nullable in case the TO
+		// is NOT watching a particular client
 		var checkTo sql.NullInt32
-		//var urination int
-		//var defecation int
-		rows.Scan(&client.Id, &client.FirstName, &client.LastName,
-			&client.Gender, &client.Urination, &client.Defecation,
-			&client.LastRecord, &checkTo)
-		/*
-			client.Urination = fmt.Sprintf("%02d:%02d",
-				urination/60, urination%60)
-			client.Defecation = fmt.Sprintf("%02d:%02d",
-				defecation/60, defecation%60)
-		*/
+
+		rows.Scan(
+			&client.Id,
+			&client.FirstName,
+			&client.LastName,
+			&client.Gender,
+			&client.Urination,
+			&client.Defecation,
+			&client.LastRecord,
+			&checkTo,
+		)
+
 		isAssigned := checkTo.Valid
 
-		// client.FirstName = caser.String(client.FirstName)
-		// client.LastName = caser.String(client.LastName)
-		startTime, err := time.Parse(time.RFC3339, client.LastRecord)
-		if err != nil {
-			writeJson(writer, http.StatusInternalServerError,
-				map[string]string{
-					"error": "internal server error",
-				},
-			)
-			return
-		}
-		currentTime := time.Now()
-		elapsedTime := currentTime.Sub(startTime)
-		if elapsedTime.Hours() <= 6 {
-			client.LastRecord = fmt.Sprintf("%02d:%02d",
-				int(elapsedTime.Hours()), int(elapsedTime.Minutes())%60)
+		if time.Since(client.LastRecord).Hours() < globals.LAST_RECORD_THRESHOLD {
+			client.PrettyLastRecord = utils.GetTimeElapsedPretty(client.LastRecord)
 		} else {
-			client.LastRecord = "nil"
+			client.PrettyLastRecord = "nil"
 		}
+
 		entries = append(entries, ClientEntry{
 			Client:     client,
 			IsAssigned: isAssigned,
@@ -126,90 +114,76 @@ func (server *Server) htmxClientEntry(writer http.ResponseWriter,
 	})
 }
 
-func (server *Server) htmxClientAssign(writer http.ResponseWriter,
+// /htmx/clients "PUT"
+func (server *Server) htmxClientTrack(writer http.ResponseWriter,
 	request *http.Request) {
-	if request.Method != "POST" {
-		writeJson(writer, http.StatusBadRequest,
-			map[string]interface{}{
-				"error": "invalid request method",
-			},
-		)
-		return
-	}
-
-	to, err := server.secureHtmx(writer, request)
-	if err != nil {
-		return
-	}
+	to := server.getTOFromCookie(request)
 
 	clientId := request.FormValue("clientId")
-	toAssign := request.FormValue("toAssign")
+	// TODO: change to toTrack from toAssign
+	toTrack := request.FormValue("toTrack")
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/clientEntryButton.html"))
-	db := server.dbStorage
-	if toAssign == "false" {
-		_, err = db.Exec(
+
+	// This means to remove tracking
+	if toTrack == "false" {
+		_, err := server.db.Exec(
 			`DELETE FROM Watch
-            WHERE to_id = $1 AND client_id = $2`,
-			to.Id, clientId)
+            WHERE to_id = $1
+				AND client_id = $2
+			`, to.Id, clientId)
+
 		if err != nil {
-			writeJson(writer, http.StatusInternalServerError,
-				map[string]string{
-					"error": "internal server error",
-				},
-			)
+			log.Println("htmxClientTrack() - db delete")
+			log.Println(err)
+			genericInternalServerErrorReply(writer)
 			return
 		}
 
 		tmpl.Execute(writer, map[string]interface{}{
 			csrf.TemplateTag: csrf.TemplateField(request),
 			"clientId":       clientId,
-			"isAssigned":     false,
+			//"isAssigned":     false,
+			"isTracking": false,
 		})
 		return
 	}
 
-	_, err = db.Exec(
+	_, err := server.db.Exec(
 		`INSERT OR IGNORE
         INTO Watch (to_id, client_id)
         VALUES ($1, $2)`, to.Id, clientId)
 	if err != nil {
-		writeJson(writer, http.StatusInternalServerError,
-			map[string]string{
-				"error": "internal server error",
-			},
-		)
+		log.Println("htmxClientTrack() - db insert")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
 		return
 	}
 
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
 		"clientId":       clientId,
-		"isAssigned":     true,
+		//"isAssigned":     true,
+		"isTracking": true,
 	})
 }
 
+// /htmx/clients/new
 func (server *Server) htmxClientNewHandler(writer http.ResponseWriter,
 	request *http.Request) {
-	_, err := server.secureHtmx(writer, request)
-	if err != nil {
-		return
+	switch request.Method {
+	case http.MethodGet:
+		htmxClientNewForm(writer, request, server)
+	case http.MethodPost:
+		htmxClientNewSave(writer, request, server)
+	default:
+		genericMethodNotAllowedReply(writer)
 	}
-
-	if request.Method == "GET" {
-		htmxClientNewGet(writer, request, server)
-		return
-	} else if request.Method == "POST" {
-		htmxClientNewPost(writer, request, server)
-		return
-	}
-	writeJson(writer, http.StatusBadRequest,
-		map[string]interface{}{
-			"error": "invalid request method",
-		},
-	)
 }
 
-func htmxClientNewGet(writer http.ResponseWriter,
+// /htmx/clients/new "GET"
+// Responds with the form to add new client
+// TODO: Change to modal
+func htmxClientNewForm(writer http.ResponseWriter,
 	request *http.Request, _ *Server) {
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/clientNew.html"))
 	tmpl.Execute(writer,
@@ -220,24 +194,31 @@ func htmxClientNewGet(writer http.ResponseWriter,
 
 }
 
-func htmxClientNewPost(writer http.ResponseWriter,
+// /htmx/clients/new "POST"
+func htmxClientNewSave(writer http.ResponseWriter,
 	request *http.Request, server *Server) {
+	err := request.ParseForm()
+	if err != nil {
+		log.Println("htmxClientNewPost() - parse form")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
+		return
+	}
+
 	firstName := request.FormValue("firstName")
 	lastName := request.FormValue("lastName")
 	gender := request.FormValue("gender")
+	// TODO: add more form values for urination, defecation
 
-	db := server.dbStorage
-	_, err := db.Exec(
+	_, err = server.db.Exec(
 		`INSERT INTO Clients 
-        (first_name, last_name, gender)
+        	(first_name, last_name, gender)
         VALUES ($1, $2, $3)`,
 		firstName, lastName, gender)
 	if err != nil {
-		writeJson(writer, http.StatusInternalServerError,
-			map[string]string{
-				"error": "internal server error",
-			},
-		)
+		log.Println("htmxClientNewPost() - db insert")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
 		return
 	}
 	writer.Header().Add("HX-Trigger", "newClient")

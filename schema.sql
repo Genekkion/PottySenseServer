@@ -1,9 +1,9 @@
 DROP TABLE IF EXISTS TOfficers;
 CREATE TABLE TOfficers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL,
     first_name TEXT DEFAULT '',
     last_name TEXT DEFAULT '',
-    username TEXT NOT NULL,
     password TEXT NOT NULL,
     telegram_chat_id TEXT DEFAULT '',
     type TEXT NOT NULL DEFAULT 'user'
@@ -15,15 +15,15 @@ CREATE TABLE Clients (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     gender TEXT NOT NULL,
-    urination INTEGER DEFAULT 300,
-    defecation INTEGER DEFAULT 600,
-    last_record DATETIME DEFAULT current_timestamp
+    urination INTEGER NOT NULL DEFAULT 300,
+    defecation INTEGER NOT NULL DEFAULT 600,
+    last_record DATETIME NOT NULL DEFAULT current_timestamp
 );
 
 DROP TABLE IF EXISTS Watch;
 CREATE TABLE Watch (
-    to_id INTEGER,
-    client_id INTEGER,
+    to_id NOT NULL INTEGER,
+    client_id NOT NULL INTEGER,
     FOREIGN KEY (to_id) REFERENCES TOfficers (id),
     FOREIGN KEY (client_id) REFERENCES Clients (id),
     UNIQUE (to_id, client_id)

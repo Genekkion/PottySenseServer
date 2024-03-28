@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// readFile, err := os.Open("./.env")
+// TODO: Switch to godotenv
 func SetEnv(filepath string) {
 	readFile, err := os.Open(filepath)
 	if err != nil {
@@ -28,7 +28,7 @@ func SetEnv(filepath string) {
 		if i == 2 {
 			fmt.Println()
 		}
-        i++
+		i++
 		i %= 3
 		os.Setenv(strArr[0], strArr[1])
 	}

@@ -1,33 +1,35 @@
 package internal
 
 import (
-    "net/http"
-    "html/template"
-    "github.com/gorilla/csrf"
-    "github.com/gorilla/mux"
-    "strconv"
+	"html/template"
+	"log"
+	"net/http"
+	"strconv"
+
+	"github.com/gorilla/csrf"
 )
 
-func (server *Server) htmxAccounts(writer http.ResponseWriter,
+// /htmx/accounts
+func (server *Server) htmxAccountsHandler(writer http.ResponseWriter,
 	request *http.Request) {
-	if request.Method != "GET" {
-		writeJson(writer, http.StatusBadRequest,
-			map[string]interface{}{
-				"error": "invalid request method",
-			},
-		)
-		return
+	switch request.Method {
+	case http.MethodGet:
+		server.htmxAccountsPanel(writer, request)
+	case http.MethodPost:
+		server.htmxAccountsSearch(writer, request)
+	default:
+		genericMethodNotAllowedReply(writer)
 	}
 
-	to, err := server.secureHtmx(writer, request)
-	if err != nil {
-		return
-	} else if to.UserType != "admin" {
-		writeJson(writer, http.StatusUnauthorized,
-			map[string]string{
-				"error": "unauthorized",
-			},
-		)
+}
+
+// /htmx/accounts "GET"
+func (server *Server) htmxAccountsPanel(writer http.ResponseWriter,
+	request *http.Request) {
+	to := server.getTOFromCookie(request)
+
+	if to.UserType != "admin" {
+		genericForbiddenReply(writer)
 		return
 	}
 
@@ -38,58 +40,53 @@ func (server *Server) htmxAccounts(writer http.ResponseWriter,
 	})
 }
 
-// /htmx/accounts/search
+// /htmx/accounts "POST"
 func (server *Server) htmxAccountsSearch(writer http.ResponseWriter,
 	request *http.Request) {
-	if request.Method != "POST" {
-		writeJson(writer, http.StatusBadRequest,
-			map[string]interface{}{
-				"error": "invalid request method",
-			},
-		)
+	to := server.getTOFromCookie(request)
+
+	if to.UserType != "admin" {
+		genericForbiddenReply(writer)
 		return
 	}
-
-	to, err := server.secureHtmx(writer, request)
+	err := request.ParseForm()
 	if err != nil {
-		return
-	} else if to.UserType != "admin" {
-		writeJson(writer, http.StatusUnauthorized,
-			map[string]string{
-				"error": "unauthorized",
-			},
-		)
+		log.Println("htmxAccountsSearch() - parse form")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
 		return
 	}
 
+	// Add wildcard for autocomplete
 	searchQuery := request.FormValue("search") + "%"
-	db := server.dbStorage
-	rows, err := db.Query(
-		`SELECT id, first_name, last_name,
-        username, telegram, type
-        FROM TOfficers WHERE id != $1
-        AND (first_name LIKE $2 COLLATE NOCASE
-        OR last_name LIKE $2 COLLATE NOCASE
-        OR username LIKE $2 COLLATE NOCASE
-        OR telegram LIKE $2 COLLATE NOCASE
-        )`,
-		to.Id, searchQuery, searchQuery)
+	rows, err := server.db.Query(
+		`SELECT id, first_name,
+			last_name, username,
+			type
+        FROM TOfficers
+		WHERE id != $1
+        	AND (first_name LIKE $2 COLLATE NOCASE
+        		OR last_name LIKE $2 COLLATE NOCASE
+        		OR username LIKE $2 COLLATE NOCASE
+        		OR telegram LIKE $2 COLLATE NOCASE)
+		`, to.Id, searchQuery)
+
 	if err != nil {
-		writeJson(writer, http.StatusInternalServerError,
-			map[string]string{
-				"error": "internal server error",
-			},
-		)
+		log.Println("htmxAccountsSearch() - db query")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
 		return
 	}
 
 	var accounts []TO
 	for rows.Next() {
 		var to TO
-
 		rows.Scan(
-			&to.Id, &to.FirstName, &to.LastName,
-			&to.Username, &to.Telegram, &to.UserType,
+			&to.Id,
+			&to.FirstName,
+			&to.LastName,
+			&to.Username,
+			&to.UserType,
 		)
 		accounts = append(accounts, to)
 	}
@@ -101,110 +98,112 @@ func (server *Server) htmxAccountsSearch(writer http.ResponseWriter,
 	})
 }
 
-func (server *Server) htmxAccountEdit(writer http.ResponseWriter,
+// /htmx/accounts/edit
+func (server *Server) htmxAccountsEditHandler(writer http.ResponseWriter,
 	request *http.Request) {
-	if request.Method != "GET" {
-		writeJson(writer, http.StatusBadRequest,
-			map[string]interface{}{
-				"error": "invalid request method",
-			},
-		)
-		return
+	switch request.Method {
+	case http.MethodPost:
+		server.htmxAccountForm(writer, request)
+	case http.MethodPut:
+	default:
+		genericMethodNotAllowedReply(writer)
+
 	}
 
-	to, err := server.secureHtmx(writer, request)
-	if err != nil {
-		return
-	} else if to.UserType != "admin" {
-		writeJson(writer, http.StatusUnauthorized,
-			map[string]string{
-				"error": "unauthorized",
-			},
-		)
-		return
-	}
-
-	vars := mux.Vars(request)
-	id := vars["id"]
-	var account TO
-
-	db := server.dbStorage
-	err = db.QueryRow(
-		`SELECT id, first_name, last_name,
-        telegram, type
-        FROM TOfficers WHERE id = $1`,
-		id).Scan(&account.Id, &account.FirstName,
-		&account.LastName, &account.Telegram, &account.UserType)
-
-	if err != nil {
-		writeJson(writer, http.StatusInternalServerError,
-			map[string]string{
-				"error": "internal server error",
-			},
-		)
-	}
-	tmpl := template.Must(template.ParseFiles("./templates/htmx/accountEditable.html"))
-	tmpl.Execute(writer, map[string]interface{}{
-		csrf.TemplateTag: csrf.TemplateField(request),
-		"csrfToken":      csrf.Token(request),
-		"account":        account,
-	})
 }
 
+// /htmx/accounts/edit "POST"
+// TODO: Change to modal
+// TODO: Add set telegram handle
+func (server *Server) htmxAccountForm(writer http.ResponseWriter,
+	request *http.Request) {
+	to := server.getTOFromCookie(request)
+
+	if to.UserType != "admin" {
+		genericForbiddenReply(writer)
+		return
+	}
+
+	// TODO: REVAMP THE WHOLE THING
+
+	/*
+			vars := mux.Vars(request)
+			id := vars["id"]
+			var account TO
+
+			db := server.db
+			err = db.QueryRow(
+				`SELECT id, first_name, last_name,
+		        telegram, type
+		        FROM TOfficers WHERE id = $1`,
+				id).Scan(&account.Id, &account.FirstName,
+				&account.LastName, &account.Telegram, &account.UserType)
+
+			if err != nil {
+				writeJson(writer, http.StatusInternalServerError,
+					map[string]string{
+						"error": "internal server error",
+					},
+				)
+			}
+			tmpl := template.Must(template.ParseFiles("./templates/htmx/accountEditable.html"))
+			tmpl.Execute(writer, map[string]interface{}{
+				csrf.TemplateTag: csrf.TemplateField(request),
+				"csrfToken":      csrf.Token(request),
+				"account":        account,
+			})
+	*/
+}
+
+// /htmx/accounts/edit "PUT"
 func (server *Server) htmxAccountSave(writer http.ResponseWriter,
 	request *http.Request) {
-	if request.Method != "POST" {
-		writeJson(writer, http.StatusBadRequest,
-			map[string]interface{}{
-				"error": "invalid request method",
-			},
-		)
+	to := server.getTOFromCookie(request)
+
+	if to.UserType != "admin" {
+		genericForbiddenReply(writer)
 		return
 	}
 
-	to, err := server.secureHtmx(writer, request)
+	err := request.ParseForm()
 	if err != nil {
+		log.Println("htmxAccountsSave() - parse form")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
 		return
-	} else if to.UserType != "admin" {
-		writeJson(writer, http.StatusUnauthorized,
+	}
+
+	toId, err := strconv.Atoi(request.FormValue("id"))
+	if err != nil {
+		writeJson(writer, http.StatusBadRequest,
 			map[string]string{
-				"error": "unauthorized",
+				"error": "Form value id must be an integer.",
 			},
 		)
 		return
 	}
-
-	vars := mux.Vars(request)
-	id := vars["id"]
-	var toId int
 	firstName := request.FormValue("firstName")
 	lastName := request.FormValue("lastName")
 	username := request.FormValue("username")
-	telegram := request.FormValue("telegram")
-	db := server.dbStorage
+	userType := request.FormValue("userType")
+	db := server.db
 	_, err = db.Exec(
 		`UPDATE TOfficers SET
-        first_name = $1,
-        last_name = $2,
-        username = $3,
-        telegram = $4
-        WHERE id = $5`,
-		firstName, lastName, username, telegram, id)
+        	first_name = $1,
+        	last_name = $2,
+        	username = $3,
+        WHERE id = $5
+		`, firstName, lastName,
+		username, userType, toId)
+
 	if err != nil {
-		writeJson(writer, http.StatusInternalServerError,
-			map[string]string{
-				"error": "internal server error",
-			},
-		)
+		log.Println("htmxAccountsSave() - db update")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
 		return
-	} else if toId, err = strconv.Atoi(id); err != nil {
-		writeJson(writer, http.StatusInternalServerError,
-			map[string]string{
-				"error": "internal server error",
-			},
-		)
-		return
-	}
+
+	} 
+
 	tmpl := template.Must(template.ParseFiles("./templates/htmx/accountEntrySingle.html"))
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
@@ -214,8 +213,7 @@ func (server *Server) htmxAccountSave(writer http.ResponseWriter,
 			FirstName: firstName,
 			LastName:  lastName,
 			Username:  username,
-			Telegram:  telegram,
-			UserType:  "user",
+			UserType:  userType,
 		},
 	})
 }

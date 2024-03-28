@@ -4,19 +4,21 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
-	"github.com/redis/go-redis/v9"
-	"gopkg.in/boj/redistore.v1"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+
+	"github.com/genekkion/PottySenseServer/internal/globals"
+	"github.com/gorilla/csrf"
+	"github.com/gorilla/mux"
+	"github.com/redis/go-redis/v9"
+	"gopkg.in/boj/redistore.v1"
 )
 
 type Server struct {
 	listenAddr        string
-	dbStorage         *sql.DB
+	db                *sql.DB
 	redisSessionStore *redistore.RediStore
 	router            *mux.Router
 	redisStorage      *redis.Client
@@ -34,7 +36,7 @@ func InitServer(dbStorage *sql.DB,
 	router := mux.NewRouter()
 	server := &Server{
 		listenAddr:        listenAddr,
-		dbStorage:         dbStorage,
+		db:                dbStorage,
 		redisSessionStore: redisSessionStore,
 		redisStorage:      redisStorage,
 		router:            router,
@@ -42,52 +44,45 @@ func InitServer(dbStorage *sql.DB,
 	}
 
 	server.addFileServer()
-	server.addRoutes()
+	server.addInternalRoutes()
 	server.addExternalRoutes()
 
 	log.Printf("Server running on: http://localhost%s\n", server.listenAddr)
 	return server
 }
 
-// Adds all stanard routes
-func (server *Server) addRoutes() {
+// Adds all internal routes
+func (server *Server) addInternalRoutes() {
 	router := server.router
 
 	router.HandleFunc("/", server.indexHandler)
 
 	router.HandleFunc("/login", server.loginHandler)
-	router.HandleFunc("/htmx/login", server.htmxLogin)
+	router.HandleFunc("/htmx/login", server.htmxLoginPanel)
 
 	router.HandleFunc("/logout", server.logout)
 
-	router.HandleFunc("/dashboard", server.dashboardPage)
-	router.HandleFunc("/htmx/dashboard", server.htmxDashboard)
+	router.HandleFunc("/dashboard", server.authWrapper(server.dashboardHandler))
+	router.HandleFunc("/htmx/dashboard", server.authWrapper(server.htmxDashboardPanel))
 
-	router.HandleFunc("/htmx/current", server.htmxCurrent)
-	router.HandleFunc("/htmx/current/clients", server.htmxCurrentClients)
+	// TODO: Change to /htmx/track
+	// TODO: Add /track route
+	router.HandleFunc("/htmx/current", server.authWrapper(server.htmxTrackingHandler))
+	// router.HandleFunc("/htmx/current/clients", server.authWrapper(server.htmxCurrentClients))
 
-	router.HandleFunc("/htmx/clients", server.htmxClients)
-	router.HandleFunc("/htmx/clients/search", server.htmxClientEntry)
-	router.HandleFunc("/htmx/clients/assign", server.htmxClientAssign)
-	router.HandleFunc("/htmx/clients/new", server.htmxClientNewHandler)
+	// TODO: Add /clients route
+	router.HandleFunc("/htmx/clients", server.authWrapper(server.htmxClients))
+	router.HandleFunc("/htmx/clients/new", server.authWrapper(server.htmxClientNewHandler))
 
-	router.HandleFunc("/htmx/accounts", server.htmxAccounts)
-	router.HandleFunc("/htmx/accounts/search", server.htmxAccountsSearch)
-	router.HandleFunc("/htmx/accounts/{id:[0-9]+}/edit", server.htmxAccountEdit)
-	router.HandleFunc("/htmx/accounts/{id:[0-9]+}/save", server.htmxAccountSave)
+	// TODO: Add /accounts route
+	router.HandleFunc("/htmx/accounts", server.authWrapper(server.htmxAccountsHandler))
+	router.HandleFunc("/htmx/accounts/edit", server.authWrapper(server.htmxAccountsEditHandler))
+	// TODO: Add /htmx/accounts/new, also modal
 
-	router.HandleFunc("/htmx/settings", server.htmxSettings)
-	router.HandleFunc("/htmx/settings/details", server.htmxSettingsDetailsSave)
-	router.HandleFunc("/htmx/settings/password", server.htmxSettingsPasswordHandler)
+	// TODO: add /settings route
+	router.HandleFunc("/htmx/settings", server.authWrapper(server.htmxSettingsHandler))
+	router.HandleFunc("/htmx/settings/password", server.authWrapper(server.htmxSettingsPasswordHandler))
 }
-
-var (
-	// All routes in UNPROTECTED_ROUTES will NOT
-	// be CSRF protected
-	UNPROTECTED_ROUTES = []string{
-		"/ext/api",
-	}
-)
 
 // Starts the server
 func (server *Server) Run() {
@@ -98,7 +93,7 @@ func (server *Server) Run() {
 		return http.HandlerFunc(func(writer http.ResponseWriter,
 			request *http.Request) {
 			served := false
-			for _, route := range UNPROTECTED_ROUTES {
+			for _, route := range globals.UNPROTECTED_ROUTES {
 				if request.URL.Path == route {
 					served = true
 					handler.ServeHTTP(writer, request)
@@ -134,7 +129,7 @@ func (server *Server) indexHandler(writer http.ResponseWriter,
 		hxReplaceUrl = "/login"
 	}
 
-	tmpl := template.Must(template.ParseFiles(baseTemplate))
+	tmpl := template.Must(template.ParseFiles(globals.BASE_TEMPLATE))
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
 		"hxGet":          hxGet,
@@ -197,4 +192,25 @@ func (server *Server) sendTeleString(chatId string, message string) error {
 func (server *Server) addFileServer() {
 	fileServer := http.FileServer(http.Dir("./static"))
 	server.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fileServer))
+}
+
+// Generic reply json for methods which are not allowed
+func genericMethodNotAllowedReply(writer http.ResponseWriter) {
+	writeJson(writer, http.StatusMethodNotAllowed, map[string]string{
+		"error": "Method not allowed.",
+	})
+}
+
+// Generic reply json for server errors
+func genericInternalServerErrorReply(writer http.ResponseWriter) {
+	writeJson(writer, http.StatusInternalServerError, map[string]string{
+		"error": "Internal server error.",
+	})
+}
+
+// Generic reply json for unauthorized access
+func genericForbiddenReply(writer http.ResponseWriter) {
+	writeJson(writer, http.StatusForbidden, map[string]string{
+		"error": "Forbidden.",
+	})
 }

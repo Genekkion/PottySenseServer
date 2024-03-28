@@ -41,8 +41,18 @@ func testDB(db *sql.DB) {
 		var password string
 		var telegram string
 		var userType string
-		err = rows.Scan(&id, &first_name, &last_name,
-			&username, &password, &telegram, &userType)
+		err = rows.Scan(
+			&id,
+			&first_name,
+			&last_name,
+			&username,
+			&password,
+			&telegram,
+			&userType,
+		)
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
 
 	rows.Close()
@@ -50,6 +60,9 @@ func testDB(db *sql.DB) {
 
 func CreateAdmin(db *sql.DB,
 	username string, password string) {
+	log.Println("HERER")
+	log.Println(username)
+	log.Println(password)
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(
 		SaltPassword(password)),
 		bcrypt.DefaultCost)
@@ -74,7 +87,7 @@ func CreateAdmin(db *sql.DB,
 		`INSERT INTO TOfficers (username, password, type)
         VALUES ($1, $2, 'admin')`,
 		strings.ToLower(username),
-		passwordHash)
+		string(passwordHash))
 	if err != nil {
 		log.Println("Error creating admin, please try again.")
 		log.Fatalln(err)

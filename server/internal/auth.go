@@ -7,41 +7,50 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/genekkion/PottySenseServer/internal/globals"
 	"github.com/genekkion/PottySenseServer/internal/utils"
 	"github.com/gorilla/csrf"
 	"golang.org/x/crypto/bcrypt"
 )
 
+
+
+// For internal use, to check if the browser session is valid.
+// Returns a boolean value representing the validity of the session.
 func (server *Server) isValidSession(request *http.Request) bool {
 	store := server.redisSessionStore
-	session, err := store.Get(request, "PS-cookie")
+	session, err := store.Get(request, globals.COOKIE_NAME)
 	if err != nil {
 		log.Println(err)
 		return false
 	}
 	log.Println(
-		session.Values["id"],
-		session.Values["username"],
-		session.Values["telegram"],
-		session.Values["userType"],
+		session.Values[globals.COOKIE_TO_ID],
+		session.Values[globals.COOKIE_TO_USERNAME],
+		session.Values[globals.COOKIE_TO_TELE_CHAT_ID],
+		session.Values[globals.COOKIE_TO_USER_TYPE],
 	)
-	return session.Values["id"] != nil
+	return session.Values[globals.COOKIE_TO_ID] != nil
 }
 
+// Creates a browser session and saves it to the
+// browser cookie. to object supplied must
+// have the following fields populated: Id, Username,
+// TelegramChatId, UserType.
 func (server *Server) createSession(writer http.ResponseWriter,
 	request *http.Request, to TO) error {
 	store := server.redisSessionStore
-	session, err := store.Get(request, "PS-cookie")
+	session, err := store.Get(request, globals.COOKIE_NAME)
 
 	if err != nil {
 		log.Println(err)
 		return err
 	}
 
-	session.Values["id"] = to.Id
-	session.Values["username"] = to.Username
-	session.Values["telegram"] = to.Telegram
-	session.Values["userType"] = to.UserType
+	session.Values[globals.COOKIE_TO_ID] = to.Id
+	session.Values[globals.COOKIE_TO_USERNAME] = to.Username
+	session.Values[globals.COOKIE_TO_TELE_CHAT_ID] = to.TelegramChatId
+	session.Values[globals.COOKIE_TO_USER_TYPE] = to.UserType
 	session.Options.SameSite = http.SameSiteStrictMode
 
 	err = session.Save(request, writer)
@@ -52,6 +61,7 @@ func (server *Server) createSession(writer http.ResponseWriter,
 	return nil
 }
 
+// /login
 func (server *Server) loginHandler(writer http.ResponseWriter, request *http.Request) {
 	switch request.Method {
 	case "GET":
@@ -59,53 +69,59 @@ func (server *Server) loginHandler(writer http.ResponseWriter, request *http.Req
 	case "POST":
 		loginApi(writer, request, server)
 	default:
-		writeJson(writer, http.StatusBadRequest,
-			map[string]string{
-				"error": "method not allowed",
-			},
-		)
-		return
-
+		genericMethodNotAllowedReply(writer)
 	}
 }
 
+// /login "GET"
 func loginPage(writer http.ResponseWriter,
 	request *http.Request, server *Server) {
-	if request.Method != "GET" {
-		writeJson(writer, http.StatusMethodNotAllowed,
-			map[string]string{
-				"error": "method not allowed",
-			},
-		)
-		return
-	} else if server.isValidSession(request) {
-		log.Println("redirecting to dashboard")
+	if server.isValidSession(request) {
+		log.Println("Already logged in, redirecting to dashboard")
 		http.Redirect(writer, request, "/dashboard", http.StatusSeeOther)
 		return
 	}
-	log.Println("trying to render", baseTemplate)
-	tmpl := template.Must(template.ParseFiles(baseTemplate))
+
+	tmpl := template.Must(template.ParseFiles(globals.BASE_TEMPLATE))
 	tmpl.Execute(writer, map[string]interface{}{
 		csrf.TemplateTag: csrf.TemplateField(request),
 		"hxGet":          "/htmx/login",
 		"hxReplaceUrl":   "/login",
 	})
-	log.Println("render /login")
 }
 
+// TODO: htmx???
+// /login "POST"
+// Request should have form values:
+// username, password
 func loginApi(writer http.ResponseWriter,
 	request *http.Request, server *Server) {
+
+	err := request.ParseForm()
+	if err != nil {
+		log.Println("loginApi(), parse form")
+		log.Println(err)
+		return
+	}
 
 	username := strings.ToLower(request.FormValue("username"))
 	password := utils.SaltPassword(request.FormValue("password"))
 
 	var id int
-	var telegram string
+	var telegramChatId string
 	var userType string
 	var passwordHash string
-	err := server.dbStorage.QueryRow(
-		"SELECT id, password, telegram, type FROM TOfficers WHERE username = $1",
-		username).Scan(&id, &passwordHash, &telegram, &userType)
+	err = server.db.QueryRow(
+		`SELECT id, password, 
+			telegram_chat_id, type
+		FROM TOfficers
+		WHERE username = $1
+		`, username).Scan(
+		&id,
+		&passwordHash,
+		&telegramChatId,
+		&userType,
+	)
 
 	if err == sql.ErrNoRows {
 		writeJson(writer, http.StatusUnauthorized,
@@ -115,11 +131,13 @@ func loginApi(writer http.ResponseWriter,
 		)
 		return
 	}
+
 	err = bcrypt.CompareHashAndPassword(
 		[]byte(passwordHash),
 		[]byte(password),
 	)
 	if err != nil {
+		log.Println(err)
 		writeJson(writer, http.StatusUnauthorized,
 			map[string]string{
 				"error": "invalid password",
@@ -130,17 +148,17 @@ func loginApi(writer http.ResponseWriter,
 
 	server.createSession(writer, request,
 		TO{
-			Id:       id,
-			Username: username,
-			Telegram: telegram,
-			UserType: userType,
+			Id:             id,
+			Username:       username,
+			TelegramChatId: telegramChatId,
+			UserType:       userType,
 		})
 	http.Redirect(writer, request, "/dashboard", http.StatusSeeOther)
 }
 
+// /logout
 func (server *Server) logout(writer http.ResponseWriter, request *http.Request) {
-	store := server.redisSessionStore
-	session, err := store.Get(request, "PS-cookie")
+	session, err := server.redisSessionStore.Get(request, globals.COOKIE_NAME)
 
 	if err != nil {
 		writeJson(writer, http.StatusInternalServerError,
@@ -149,9 +167,8 @@ func (server *Server) logout(writer http.ResponseWriter, request *http.Request) 
 			},
 		)
 	}
-
 	session.Options.MaxAge = -1
-
+	// Clears the cookie
 	err = session.Save(request, writer)
 	if err != nil {
 		writeJson(writer, http.StatusInternalServerError,
@@ -160,39 +177,8 @@ func (server *Server) logout(writer http.ResponseWriter, request *http.Request) 
 			},
 		)
 	}
-
+	// Redirects to login page
 	http.Redirect(writer, request, "/login", http.StatusSeeOther)
-}
-
-func (server *Server) secureHtmx(writer http.ResponseWriter,
-	request *http.Request) (TO, error) {
-	store := server.redisSessionStore
-	session, err := store.Get(request, "PS-cookie")
-	if err != nil {
-		log.Println(err)
-		writeJson(writer, http.StatusInternalServerError,
-			map[string]interface{}{
-				"error": "internal server error",
-			},
-		)
-		return TO{}, err
-	}
-
-	id := session.Values["id"]
-	username := session.Values["username"]
-	userType := session.Values["userType"]
-	telegram := session.Values["telegram"]
-
-	if id == nil || username == nil {
-		http.Redirect(writer, request, "/login", http.StatusSeeOther)
-		return TO{}, nil
-	}
-	return TO{
-		Id:       id.(int),
-		Username: username.(string),
-		Telegram: telegram.(string),
-		UserType: userType.(string),
-	}, nil
 }
 
 // Function prototype for the authWrapper below
@@ -208,5 +194,21 @@ func (server *Server) authWrapper(function serverFunc) http.HandlerFunc {
 		} else {
 			function(writer, request)
 		}
+	}
+}
+
+// WARN: For internal use only. Only to be
+// used WITHIN a route that is auth wrapped to
+// guarantee existence of TO details being found
+// in cookie.
+func (server *Server) getTOFromCookie(request *http.Request) *TO {
+	// Will not error here since auth wrapped
+	session, _ := server.redisSessionStore.Get(request, globals.COOKIE_NAME)
+
+	return &TO{
+		Id:             session.Values[globals.COOKIE_TO_ID].(int),
+		Username:       session.Values[globals.COOKIE_TO_USER_TYPE].(string),
+		TelegramChatId: session.Values[globals.COOKIE_TO_TELE_CHAT_ID].(string),
+		UserType:       session.Values[globals.COOKIE_TO_USER_TYPE].(string),
 	}
 }

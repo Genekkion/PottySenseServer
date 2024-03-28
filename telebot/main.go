@@ -30,7 +30,7 @@ func main() {
 
 	for _, env := range REQUIRED_ENV {
 		if os.Getenv(env) == "" {
-			log.Fatalln("Required env variable\"+env+\" not set. Exiting.")
+			log.Fatalln("Required env variable\"" + env + "\" not set. Exiting.")
 		}
 	}
 

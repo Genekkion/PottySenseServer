@@ -5,16 +5,22 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"strconv"
-	"time"
-
-	"github.com/gorilla/mux"
 )
 
 func (server *Server) addExternalRoutes() {
 	router := server.router
+	router.HandleFunc("/ext", server.externalHealth)
 	router.HandleFunc("/ext/api", server.externalHandler)
-	router.HandleFunc("/ext/api/client/{id:[0-9]+}", server.externalHandlerClient)
+}
+
+// /ext ALL METHODS
+// Mainly to test for server connection
+func (server *Server) externalHealth(writer http.ResponseWriter,
+	request *http.Request) {
+	writeJson(writer, http.StatusOK, map[string]string{
+		"message": "Server is up and running!",
+	})
+
 }
 
 // /ext/api
@@ -22,30 +28,10 @@ func (server *Server) externalHandler(writer http.ResponseWriter,
 	request *http.Request) {
 
 	switch request.Method {
-	case http.MethodGet:
-		externalPing(writer, request)
+	case http.MethodPost:
+		server.PiSendTO(writer, request)
 	default:
-		http.Error(writer, "Method not allowed!", http.StatusMethodNotAllowed)
-	}
-}
-
-// /ext/api "GET"
-// Test if server is running
-func externalPing(writer http.ResponseWriter,
-	_ *http.Request) {
-	log.Println("get called")
-	writeJson(writer, http.StatusOK, "Server is running and open for connections.")
-}
-
-// /ext/api/client
-func (server *Server) externalHandlerClient(writer http.ResponseWriter,
-	request *http.Request) {
-
-	switch request.Method {
-	case http.MethodGet:
-		server.startSession(writer, request)
-	default:
-		http.Error(writer, "Method not allowed!", http.StatusMethodNotAllowed)
+		genericMethodNotAllowedReply(writer)
 	}
 }
 
@@ -54,7 +40,7 @@ func (server *Server) getClient(clientId int) Client {
 	client := Client{
 		Id: clientId,
 	}
-	err := server.dbStorage.QueryRow(
+	err := server.db.QueryRow(
 		`SELECT first_name, last_name,
 			gender, urination,
 			defecation, last_record
@@ -72,42 +58,10 @@ func (server *Server) getClient(clientId int) Client {
 	return client
 }
 
-// /ext/api/client
-func (server *Server) startSession(writer http.ResponseWriter,
-	request *http.Request) {
-	vars := mux.Vars(request)
-	id := vars["id"]
-	clientId, _ := strconv.Atoi(id)
-	client := server.getClient(clientId)
-
-	log.Println("Urination timer started")
-	go asyncCallback(
-		time.Duration(client.Urination)*time.Second,
-		func() {
-			// TODO: Callback action after timer is up
-			log.Println("Urination timer up!")
-			chatIds := server.getAllTOWatching(clientId)
-
-			for _, chatId := range chatIds {
-				server.sendTeleString(chatId, id+" urination")
-			}
-		},
-	)
-
-	log.Println("Defecation timer started")
-	go asyncCallback(
-		time.Duration(client.Defecation)*time.Second,
-		func() {
-			// TODO: Callback action after timer is up
-			log.Println("Defecation timer up!")
-		},
-	)
-}
-
 // Gets the chatIds for TOs watching for a particular client.
 // TOs must have their telegram registered with the bot beforehand
 func (server *Server) getAllTOWatching(clientId int) []string {
-	rows, err := server.dbStorage.Query(
+	rows, err := server.db.Query(
 		`SELECT Tofficers.telegram_chat_id
 		FROM Tofficers INNER JOIN Watch
 		On Tofficers.id = Watch.to_id
@@ -130,31 +84,7 @@ func (server *Server) getAllTOWatching(clientId int) []string {
 		}
 		TOChatIDs = append(TOChatIDs, chatId)
 	}
-
-	log.Println(TOChatIDs)
 	return TOChatIDs
-}
-
-// Calls the function after the specified duration.
-// E.g. go asyncCallback(5 * time.Second, func(){ log.Println("test") })
-func asyncCallback(duration time.Duration, function func()) {
-	time.Sleep(duration)
-	function()
-}
-
-// /ext/pi
-func (server *Server) PiListener(writer http.ResponseWriter,
-	request *http.Request) {
-
-	switch request.Method {
-
-	case http.MethodPost:
-		server.PiSendTO(writer, request)
-
-	default:
-		http.Error(writer, "Method not allowed!", http.StatusMethodNotAllowed)
-	}
-
 }
 
 /*
@@ -168,30 +98,24 @@ func (server *Server) PiListener(writer http.ResponseWriter,
 
 */
 
-type PiMessage struct {
-	ClientId    int    `json:"clientId"`
-	Message     string `json:"message"`
-	MessageType string `json:"messageType"`
-}
-
-// /ext/pi "POST"
+// /ext/api/client "POST"
 func (server *Server) PiSendTO(writer http.ResponseWriter,
 	request *http.Request) {
-
-	err := request.ParseForm()
-	if err != nil {
-		log.Println("PiSendTo(), parse form")
-		log.Println(err)
-		return
+	type PiMessage struct {
+		ClientId    int    `json:"clientId"`
+		Message     string `json:"message"`
+		MessageType string `json:"messageType"`
 	}
 
 	var piMessage PiMessage
-	err = json.NewDecoder(request.Body).Decode(&piMessage)
+
+	err := json.NewDecoder(request.Body).Decode(&piMessage)
 	if err != nil {
 		log.Println("PiSendTo(), decode json")
 		log.Println(err)
 		return
 	}
+	log.Println(piMessage)
 
 	chatIDs := server.getAllTOWatching(piMessage.ClientId)
 	var templateFilePath string
@@ -206,10 +130,10 @@ func (server *Server) PiSendTO(writer http.ResponseWriter,
 	case "complete":
 
 	}
-	
+
 	tmpl := template.Must(template.ParseFiles(templateFilePath))
 	for _, chatId := range chatIDs {
 		server.sendTeleTemplate(chatId, tmpl)
 	}
-	
+
 }
