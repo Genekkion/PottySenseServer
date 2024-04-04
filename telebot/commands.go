@@ -14,7 +14,7 @@ import (
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/redis/go-redis/v9"
+	_ "github.com/redis/go-redis/v9"
 )
 
 type botCommandFunc func(tgbotapi.Update) string
@@ -371,16 +371,16 @@ func (bot *Bot) botCommandSessionStart(update tgbotapi.Update) string {
 	}
 	log.Println("serverResponse", postResponse.StatusCode)
 
-	// WARN: Harcoded for single toilet with id 1
-	err = bot.redisCache.Set(context.Background(),
-		"client-"+fmt.Sprint(clientId),
-		1,
-		0,
-	).Err()
-	if err != nil {
-		log.Println(err)
-		return GENERIC_ERROR_MESSAGE
-	}
+	// // WARN: Harcoded for single toilet with id 1
+	// err = bot.redisCache.Set(context.Background(),
+	// 	"client-"+fmt.Sprint(clientId),
+	// 	1,
+	// 	0,
+	// ).Err()
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return GENERIC_ERROR_MESSAGE
+	// }
 
 	return "Successfully started the session!"
 }
@@ -400,15 +400,15 @@ func (bot *Bot) botCommandSessionCancel(update tgbotapi.Update) string {
 		return "Please use the /session command with the numeric id of the client."
 	}
 
-	_, err = bot.redisCache.Get(context.Background(),
-		"client-"+fmt.Sprint(clientId)).Result()
-	if err == redis.Nil {
-		log.Println(err)
-		return "No session found for client with id " + fmt.Sprint(clientId)
-	} else if err != nil {
-		log.Println(err)
-		return GENERIC_ERROR_MESSAGE
-	}
+	// _, err = bot.redisCache.Get(context.Background(),
+	// 	"client-"+fmt.Sprint(clientId)).Result()
+	// if err == redis.Nil {
+	// 	log.Println(err)
+	// 	return "No session found for client with id " + fmt.Sprint(clientId)
+	// } else if err != nil {
+	// 	log.Println(err)
+	// 	return GENERIC_ERROR_MESSAGE
+	// }
 
 	body, err := json.Marshal(
 		map[string]int{
@@ -419,22 +419,22 @@ func (bot *Bot) botCommandSessionCancel(update tgbotapi.Update) string {
 		return GENERIC_ERROR_MESSAGE
 	}
 
-	postRequest, err := http.NewRequest(
-		http.MethodPost,
+	deleteRequest, err := http.NewRequest(
+		http.MethodDelete,
 		"http://"+os.Getenv("SERVER_ADDR")+"/ext/bot",
 		bytes.NewBuffer(body),
 	)
-	postRequest.Header.Set("X-PS-Header", os.Getenv("SECRET_HEADER"))
+	deleteRequest.Header.Set("X-PS-Header", os.Getenv("SECRET_HEADER"))
 	if err != nil {
 		return GENERIC_ERROR_MESSAGE
 	}
 
-	postResponse, err := http.DefaultClient.Do(postRequest)
+	postResponse, err := http.DefaultClient.Do(deleteRequest)
 	if err != nil {
 		return GENERIC_ERROR_MESSAGE
 	}
 
 	log.Println("serverResponse", postResponse.StatusCode)
 
-	return "Successfully started the session!"
+	return "Successfully deleted the session!"
 }

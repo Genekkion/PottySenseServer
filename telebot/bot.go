@@ -90,6 +90,8 @@ func (bot *Bot) Run() {
 			message.Text = bot.authWrapper(bot.botCommandHelp)(update)
 		case "session":
 			message.Text = bot.authWrapper(bot.botCommandSessionStart)(update)
+		case "cancel":
+			message.Text = bot.authWrapper(bot.botCommandSessionCancel)(update)
 		default:
 			message.Text = "Error, command not found. Please use /help to get the list of available commands."
 

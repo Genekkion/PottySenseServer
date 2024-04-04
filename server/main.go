@@ -34,7 +34,7 @@ func main() {
 		}
 	}
 
-	globals.TOILETS_URL[1] = os.Getenv("PI_ADDR")
+	// globals.TOILETS_URL[1] = os.Getenv("PI_ADDR")
 
 	redisSessionStore := utils.NewRedisSessionStore()
 	defer redisSessionStore.Close()

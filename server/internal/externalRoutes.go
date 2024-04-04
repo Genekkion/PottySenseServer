@@ -77,15 +77,28 @@ func (server *Server) extBotSessionStart(writer http.ResponseWriter,
 		genericInternalServerErrorReply(writer)
 		return
 	}
-	log.Println("botMessage", botMessage)
+
+	var urination int
+	var defecation int
+	server.db.QueryRow(`
+		SELECT urination, defecation
+		FROM Clients
+		WHERE id = $1
+	`, botMessage.ClientId).Scan(
+		&urination,
+		&defecation,
+	)
 
 	body, err := json.Marshal(
-		map[string]string{
-			"clientId": fmt.Sprint(botMessage.ClientId),
+		map[string]interface{}{
+			"clientId":   botMessage.ClientId,
+			"urination":  urination,
+			"defecation": defecation,
+			// "businessType": bot
 		},
 	)
 	if err != nil {
-		log.Println("extBotSessionStart(), format string")
+		log.Println("extBotSessionStart(), make json")
 		log.Println(err)
 		genericInternalServerErrorReply(writer)
 		return
@@ -94,7 +107,7 @@ func (server *Server) extBotSessionStart(writer http.ResponseWriter,
 	response := bytes.NewBuffer(body)
 
 	postResponse, err := http.Post(
-		"http://"+os.Getenv("PI_ADDR"),
+		"http://"+os.Getenv("PI_ADDR")+"/api",
 		"application/json",
 		response,
 	)
@@ -128,31 +141,31 @@ func (server *Server) getToilet(clientId int) string {
 // /ext/bot "DELETE"
 func (server *Server) extBotSessionCancel(writer http.ResponseWriter,
 	request *http.Request) {
-	type BotMessage struct {
-		ClientId int `json:"clientId"`
-	}
+	// type BotMessage struct {
+	// 	ClientId int `json:"clientId"`
+	// }
 
-	var botMessage BotMessage
+	// var botMessage BotMessage
 
-	err := json.NewDecoder(request.Body).Decode(&botMessage)
-	if err != nil {
-		log.Println("extBotSessionCancel(), decode json")
-		log.Println(err)
-		genericInternalServerErrorReply(writer)
-		return
-	}
-	log.Println("botMessage", botMessage)
+	// err := json.NewDecoder(request.Body).Decode(&botMessage)
+	// if err != nil {
+	// 	log.Println("extBotSessionCancel(), decode json")
+	// 	log.Println(err)
+	// 	genericInternalServerErrorReply(writer)
+	// 	return
+	// }
+	// log.Println("botMessage", botMessage)
 
-	serverUrl := server.getToilet(botMessage.ClientId)
-	if serverUrl == "" {
-		log.Println("Error getting toilet url")
-		genericInternalServerErrorReply(writer)
-		return
-	}
+	// serverUrl := server.getToilet(botMessage.ClientId)
+	// if serverUrl == "" {
+	// 	log.Println("Error getting toilet url")
+	// 	genericInternalServerErrorReply(writer)
+	// 	return
+	// }
 
 	deleteRequest, err := http.NewRequest(
 		http.MethodDelete,
-		serverUrl,
+		"http://"+os.Getenv("PI_ADDR")+"/api",
 		nil,
 	)
 	if err != nil {
