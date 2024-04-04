@@ -22,8 +22,8 @@ CREATE TABLE Clients (
 
 DROP TABLE IF EXISTS Watch;
 CREATE TABLE Watch (
-    to_id NOT NULL INTEGER,
-    client_id NOT NULL INTEGER,
+    to_id  INTEGER,
+    client_id INTEGER,
     FOREIGN KEY (to_id) REFERENCES TOfficers (id),
     FOREIGN KEY (client_id) REFERENCES Clients (id),
     UNIQUE (to_id, client_id)

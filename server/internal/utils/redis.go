@@ -15,7 +15,7 @@ func NewRedisSessionStore() *redistore.RediStore {
 		os.Getenv("REDIS_PASSWORD"),
 		[]byte(os.Getenv("REDIS_SECRET")),
 	)
-	log.Println(os.Getenv("REDIS_ADDR"))
+
 	if err != nil {
 		log.Println("redis.go - newRedisStore()")
 		log.Fatal(err)
@@ -32,7 +32,7 @@ func NewRedisSessionStore() *redistore.RediStore {
 
 func NewRedisStorage() *redis.Client {
 	client := redis.NewClient(&redis.Options{
-		Addr:     "localhost:" + os.Getenv("REDIS_PORT"),
+		Addr:     os.Getenv("REDIS_ADDR"),
 		Password: os.Getenv("REDIS_PASSWORD"),
 		DB:       0,
 	})

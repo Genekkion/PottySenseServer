@@ -8,5 +8,6 @@ var (
 	// be CSRF protected
 	UNPROTECTED_ROUTES = []string{
 		"/ext/api",
+		"/ext/bot",
 	}
 )

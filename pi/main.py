@@ -64,13 +64,13 @@ def create_app():
                 "Invalid value for env variable START_SESSION_THRESHOLD, defaulting to 300s."
             )
 
-    test_server_connection(SERVER_ADDR + "/ext", SECRET_HEADER)
+    # test_server_connection(SERVER_ADDR + "/ext", SECRET_HEADER)
 
     app = Quart(__name__)
 
     # Constants
     app.config["SECRET_HEADER"] = SECRET_HEADER
-    app.config["SERVER_ADDR"] = SERVER_ADDR + "/ext/api"
+    app.config["SERVER_ADDR"] = SERVER_ADDR
     app.config["HEADER_CONFIG"] = {
         "Content-Type": "application/json",
         "X-PS-Header": SECRET_HEADER,
@@ -82,7 +82,6 @@ def create_app():
     app.config["current_client_id"] = -1
     app.config["time_urination"] = -1
     app.config["time_defecation"] = -1
-    app.config["async_tasks"] = []
 
     return app
 
@@ -91,23 +90,20 @@ app = create_app()
 
 
 async def send_tele_message(message: str, message_type: str):
-    try:
-        current_client_id = current_app.config["current_client_id"]
-        data = {
-            "clientId": current_client_id,
-            "message": message,
-            "messageType": message_type,
-        }
+    current_client_id = app.config.get("current_client_id")
+    data = {
+        "clientId": current_client_id,
+        "message": message,
+        "messageType": message_type,
+    }
 
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                current_app.config["SERVER_ADDR"],
-                json=data,
-                headers=current_app.config["HEADER_CONFIG"],
-            ) as response:
-                print(response.status)  # print response status code
-    except aiohttp.ClientError as err:
-        print(err)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            app.config.get("SERVER_ADDR") + "/ext/api",
+            json=data,
+            headers=app.config.get("HEADER_CONFIG"),
+        )
+        print(response)  # print response status code
 
 
 async def first_timer_warning():
@@ -126,10 +122,7 @@ def auth_wrapper(func):
     @wraps(func)
     def wrapper_func(*args, **kwargs):
         secret_header = request.headers.get("X-PS-Header")
-        if (
-            secret_header is None
-            or secret_header != current_app.config["SECRET_HEADER"]
-        ):
+        if secret_header is None or secret_header != app.config.get("SECRET_HEADER"):
             return (
                 jsonify(
                     {
@@ -144,7 +137,12 @@ def auth_wrapper(func):
 
 
 @app.route("/")
-def index_handler():
+async def index_handler():
+    await test_server_connection(
+        app.config.get("SERVER_ADDR") + "/ext",
+        app.config.get("SECRET_HEADER"),
+    )
+
     return (
         jsonify(
             {
@@ -159,8 +157,8 @@ def index_handler():
 @auth_wrapper
 def api_handler():
     if request.method == "GET":
-        current_client_id = current_app.config.get("current_client_id")
-        timestamp_1 = current_app.config.get("timestamp_1")
+        current_client_id = app.config.get("current_client_id")
+        timestamp_1 = app.config.get("timestamp_1")
 
         if current_client_id == -1 or timestamp_1 == -1:
             return (
@@ -212,10 +210,10 @@ def api_handler():
                     HTTP_STATUS_BAD_REQUEST,
                 )
 
-            current_app.config["time_urination"] = int(json_urination)
-            current_app.config["time_defecation"] = int(json_defecation)
-            current_app.config["current_client_id"] = int(json_urination)
-            current_app.config["timestamp_1"] = time.time()
+            app.config["time_defecation"] = int(json_defecation)
+            app.config["current_client_id"] = int(json_urination)
+            app.config["timestamp_1"] = time.time()
+            app.config["time_urination"] = int(json_urination)
 
         except ValueError:
             return (
@@ -227,9 +225,7 @@ def api_handler():
                 HTTP_STATUS_BAD_REQUEST,
             )
 
-        current_app.config["async_tasks"].append(
-            asyncio.create_task(first_timer_warning())
-        )
+        app.config["async_tasks"].append(asyncio.create_task(first_timer_warning()))
 
         return (
             jsonify(
@@ -244,16 +240,12 @@ def api_handler():
     # the current session and reset all
     # parameters
     elif request.method == "DELETE":
-        current_app.config["timestamp_1"] = -1
-        current_app.config["timestamp_2"] = -1
-        current_app.config["current_client_id"] = -1
-        current_app.config["time_urination"] = -1
-        current_app.config["time_defecation"] = -1
-        current_app.config["async_tasks"] = []
+        app.config["timestamp_1"] = -1
+        app.config["timestamp_2"] = -1
+        app.config["current_client_id"] = -1
+        app.config["time_urination"] = -1
+        app.config["time_defecation"] = -1
 
-        for task in current_app.config["async_tasks"]:
-            task.cancel()
-        current_app.config["async_tasks"].clear()
         return (
             jsonify(
                 {
@@ -272,3 +264,6 @@ def api_handler():
         ),
         HTTP_STATUS_METHOD_NOT_ALLOWED,
     )
+
+
+app.run()

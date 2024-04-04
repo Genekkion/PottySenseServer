@@ -1,10 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -90,6 +93,8 @@ func (bot *Bot) Run() {
 			message.Text = bot.authWrapper(bot.botCommandUnTrackClient)(update)
 		case "help":
 			message.Text = bot.authWrapper(bot.botCommandHelp)(update)
+		case "session":
+			message.Text = bot.authWrapper(bot.botCommandSessionStart)(update)
 		default:
 			message.Text = "Error, command not found. Please use /help to get the list of available commands."
 
@@ -429,4 +434,46 @@ func (bot *Bot) botCommandHelp(update tgbotapi.Update) string {
 	message += "<b>6.</b> /untrack - Stop tracking the client with the id supplied\n"
 	message += "<b>7.</b> /help - List all available commands\n"
 	return message
+}
+
+func (bot *Bot) botCommandSessionStart(update tgbotapi.Update) string {
+	queries := strings.Split(update.Message.Text, " ")
+	// Only accept 1 name query at a time
+	if len(queries) != 2 {
+		return "Please use the /session command with exactly 1 id after the command."
+	}
+	query := queries[1]
+
+	clientId, err := strconv.Atoi(query)
+	if err != nil {
+		return "Please use the /session command with the numeric id of the client."
+	}
+
+	body, err := json.Marshal(
+		map[string]int{
+			"clientId": clientId,
+		},
+	)
+	if err != nil {
+		return GENERIC_ERROR_MESSAGE
+	}
+
+	postRequest, err := http.NewRequest(
+		http.MethodPost,
+		os.Getenv("SERVER_ADDR")+"/ext/bot",
+		bytes.NewBuffer(body),
+	)
+	postRequest.Header.Set("X-PS-Header", os.Getenv("SECRET_HEADER"))
+	if err != nil {
+		return GENERIC_ERROR_MESSAGE
+	}
+
+	postResponse, err := http.DefaultClient.Do(postRequest)
+	if err != nil {
+		return GENERIC_ERROR_MESSAGE
+	}
+
+	log.Println("serverResponse", postResponse.StatusCode)
+
+	return "Successfully started the session!"
 }

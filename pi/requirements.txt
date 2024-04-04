@@ -1,3 +1,4 @@
 quart
 python-dotenv
 httpx
+bleak

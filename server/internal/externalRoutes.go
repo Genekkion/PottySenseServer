@@ -1,7 +1,9 @@
 package internal
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -29,7 +31,9 @@ func (server *Server) extWrapper(function serverFunc) http.HandlerFunc {
 func (server *Server) addExternalRoutes() {
 	router := server.router
 	router.HandleFunc("/ext", server.extWrapper(server.externalHealth))
-	router.HandleFunc("/ext/api", server.extWrapper(server.externalHandler))
+	router.HandleFunc("/ext/api", server.extWrapper(server.extApiHandler))
+	router.HandleFunc("/ext/bot", server.extWrapper(server.extBotHandler))
+
 }
 
 // /ext ALL METHODS
@@ -41,8 +45,70 @@ func (server *Server) externalHealth(writer http.ResponseWriter,
 	})
 }
 
+// /ext/bot
+func (server *Server) extBotHandler(writer http.ResponseWriter,
+	request *http.Request) {
+
+	switch request.Method {
+	case http.MethodPost:
+		server.extBotSessionStart(writer, request)
+	default:
+		genericMethodNotAllowedReply(writer)
+	}
+
+}
+
+func (server *Server) extBotSessionStart(writer http.ResponseWriter,
+	request *http.Request) {
+	type BotMessage struct {
+		ClientId int `json:"clientId"`
+	}
+
+	var botMessage BotMessage
+
+	err := json.NewDecoder(request.Body).Decode(&botMessage)
+	if err != nil {
+		log.Println("extBotSessionStart(), decode json")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
+		return
+	}
+	log.Println("botMessage", botMessage)
+
+	body, err := json.Marshal(
+		map[string]string{
+			"clientId": fmt.Sprint(botMessage.ClientId),
+		},
+	)
+	if err != nil {
+		log.Println("extBotSessionStart(), format string")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
+		return
+	}
+
+	response := bytes.NewBuffer(body)
+
+	postResponse, err := http.Post(
+		os.Getenv("PI_ADDR"),
+		"application/json",
+		response,
+	)
+	if err != nil {
+		log.Println("extBotSessionStart(), post request")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
+		return
+	}
+
+	log.Println(postResponse.StatusCode, postResponse.Body)
+	writeJson(writer, http.StatusOK, map[string]interface{}{
+		"message": "Bot session started.",
+	})
+}
+
 // /ext/api
-func (server *Server) externalHandler(writer http.ResponseWriter,
+func (server *Server) extApiHandler(writer http.ResponseWriter,
 	request *http.Request) {
 
 	switch request.Method {
