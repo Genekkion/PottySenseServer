@@ -10,9 +10,31 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var (
+	requiredEnv = []string{
+
+		"SERVER_ADDR",
+		"DATABASE_PATH",
+		"CSRF_SECRET",
+		"GORILLA_SESSION_SECRET",
+		"TELEGRAM_BOT_TOKEN",
+		"REDIS_ADDR",
+		"REDIS_SECRET",
+		"SECRET_HEADER",
+	}
+)
+
 func main() {
 	globals.RUN = true
 	godotenv.Load("../.env")
+
+	for _, env := range requiredEnv {
+		if os.Getenv(env) == "" {
+			log.Fatalln("Required environment variable \"" + env + "\" not set. Exiting.")
+		}
+	}
+
+	globals.TOILETS_URL[1] = os.Getenv("PI_ADDR")
 
 	redisSessionStore := utils.NewRedisSessionStore()
 	defer redisSessionStore.Close()

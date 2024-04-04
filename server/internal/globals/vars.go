@@ -10,4 +10,9 @@ var (
 		"/ext/api",
 		"/ext/bot",
 	}
+
+	// WARN: Harcoded for single toilet with id of 1
+	TOILETS_URL = map[int]string{
+	
+	}
 )

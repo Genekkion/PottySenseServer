@@ -47,10 +47,10 @@ func (server *Server) htmxTrackingLoad(writer http.ResponseWriter,
 			Clients.last_name, Clients.gender,
 			Clients.urination, Clients.defecation,
 			Clients.last_record
-        FROM Watch
+        FROM Track
 		INNER JOIN Clients
-        	ON Watch.client_id = Clients.id
-        WHERE Watch.to_id = $1`,
+        	ON Track.client_id = Clients.id
+        WHERE Track.to_id = $1`,
 		to.Id)
 	if err != nil {
 		log.Println("htmxTrackingLoad() - db query")

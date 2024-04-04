@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -52,12 +53,15 @@ func (server *Server) extBotHandler(writer http.ResponseWriter,
 	switch request.Method {
 	case http.MethodPost:
 		server.extBotSessionStart(writer, request)
+	case http.MethodDelete:
+		server.extBotSessionCancel(writer, request)
 	default:
 		genericMethodNotAllowedReply(writer)
 	}
 
 }
 
+// /ext/bot "POST"
 func (server *Server) extBotSessionStart(writer http.ResponseWriter,
 	request *http.Request) {
 	type BotMessage struct {
@@ -90,7 +94,7 @@ func (server *Server) extBotSessionStart(writer http.ResponseWriter,
 	response := bytes.NewBuffer(body)
 
 	postResponse, err := http.Post(
-		os.Getenv("PI_ADDR"),
+		"http://"+os.Getenv("PI_ADDR"),
 		"application/json",
 		response,
 	)
@@ -104,6 +108,71 @@ func (server *Server) extBotSessionStart(writer http.ResponseWriter,
 	log.Println(postResponse.StatusCode, postResponse.Body)
 	writeJson(writer, http.StatusOK, map[string]interface{}{
 		"message": "Bot session started.",
+	})
+}
+
+func (server *Server) getToilet(clientId int) string {
+	result, err := server.redisStorage.Get(
+		context.Background(),
+		"client-"+fmt.Sprint(clientId),
+	).Int()
+	if err != nil {
+		log.Println("getToilet()")
+		log.Println(err)
+		return ""
+	}
+
+	return globals.TOILETS_URL[result]
+}
+
+// /ext/bot "DELETE"
+func (server *Server) extBotSessionCancel(writer http.ResponseWriter,
+	request *http.Request) {
+	type BotMessage struct {
+		ClientId int `json:"clientId"`
+	}
+
+	var botMessage BotMessage
+
+	err := json.NewDecoder(request.Body).Decode(&botMessage)
+	if err != nil {
+		log.Println("extBotSessionCancel(), decode json")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
+		return
+	}
+	log.Println("botMessage", botMessage)
+
+	serverUrl := server.getToilet(botMessage.ClientId)
+	if serverUrl == "" {
+		log.Println("Error getting toilet url")
+		genericInternalServerErrorReply(writer)
+		return
+	}
+
+	deleteRequest, err := http.NewRequest(
+		http.MethodDelete,
+		serverUrl,
+		nil,
+	)
+	if err != nil {
+		log.Println("extBotSessionCancel(), create request")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
+		return
+	}
+
+	response, err := http.DefaultClient.Do(deleteRequest)
+	if err != nil {
+		log.Println("extBotSessionCancel(), delete request")
+		log.Println(err)
+		genericInternalServerErrorReply(writer)
+		return
+	}
+
+	log.Println(response.StatusCode, response.Body)
+	writeJson(writer, http.StatusOK, map[string]interface{}{
+		"message": "Bot session cancelled.",
 	})
 }
 
@@ -142,14 +211,14 @@ func (server *Server) getClient(clientId int) Client {
 	return client
 }
 
-// Gets the chatIds for TOs watching for a particular client.
+// Gets the chatIds for TOs Tracking for a particular client.
 // TOs must have their telegram registered with the bot beforehand
 func (server *Server) getAllTOTracking(clientId int) []string {
 	rows, err := server.db.Query(
 		`SELECT Tofficers.telegram_chat_id
-		FROM Tofficers INNER JOIN Watch
-		On Tofficers.id = Watch.to_id
-		WHERE Watch.client_id = $1
+		FROM Tofficers INNER JOIN Track
+		On Tofficers.id = Track.to_id
+		WHERE Track.client_id = $1
 		`, clientId)
 	if err != nil {
 		log.Println(err)
@@ -178,6 +247,7 @@ func (server *Server) extSendTele(writer http.ResponseWriter,
 		ClientId    int    `json:"clientId"`
 		Message     string `json:"message"`
 		MessageType string `json:"messageType"`
+		IsSilent    bool   `json:"silentMessage"`
 	}
 
 	var piMessage PiMessage
@@ -200,13 +270,18 @@ func (server *Server) extSendTele(writer http.ResponseWriter,
 	}
 
 	var message string
-	switch strings.ToLower(piMessage.MessageType) {
+	messageType := strings.ToLower(piMessage.MessageType)
+	isSilent := true
+	switch messageType {
 	case "alert":
 		message = "⚠️ <b>ALERT!</b> ⚠️\n"
+		isSilent = false
 	case "notification":
 		message = "🔔 <b>Notification!</b> 🔔\n"
+		isSilent = false
 	case "complete":
 		message = "✅ <b>Complete!</b> ✅\n"
+		isSilent = false
 	default:
 		message = ""
 	}
@@ -215,7 +290,7 @@ func (server *Server) extSendTele(writer http.ResponseWriter,
 
 	errCount := 0
 	for _, chatId := range chatIDs {
-		err := server.sendTeleString(chatId, message)
+		err := server.sendTeleString(chatId, message, isSilent)
 		if err != nil {
 			log.Println(err)
 			errCount++

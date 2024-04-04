@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/genekkion/PottySenseServer/internal/utils"
@@ -85,7 +86,7 @@ func (server *Server) htmxSettingsDetailsSave(writer http.ResponseWriter,
 	if request.FormValue("telegram") != "" {
 		err := server.redisStorage.Set(
 			request.Context(),
-			request.FormValue("telegram"),
+			strings.ToLower(request.FormValue("telegram")),
 			to.Id,
 			time.Minute*10,
 		).Err()

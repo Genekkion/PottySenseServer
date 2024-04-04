@@ -57,10 +57,10 @@ func (server *Server) htmxClientSearch(writer http.ResponseWriter,
 		`SELECT Clients.id, Clients.first_name,
 			Clients.last_name, Clients.gender,
 			Clients.urination, Clients.defecation,
-        	Clients.last_record, Watch.to_id 
-        FROM Clients LEFT JOIN Watch
-        	ON Clients.id = Watch.client_id
-        		AND Watch.to_id = $1
+        	Clients.last_record, Track.to_id 
+        FROM Clients LEFT JOIN Track
+        	ON Clients.id = Track.client_id
+        		AND Track.to_id = $1
         WHERE first_name LIKE $2 COLLATE NOCASE
 			OR last_name LIKE $2 COLLATE NOCASE
 		`, to.Id, searchQuery)
@@ -80,7 +80,7 @@ func (server *Server) htmxClientSearch(writer http.ResponseWriter,
 	for rows.Next() {
 		var client Client
 		// Needs to be nullable in case the TO
-		// is NOT watching a particular client
+		// is NOT Tracking a particular client
 		var checkTo sql.NullInt32
 
 		rows.Scan(
@@ -127,7 +127,7 @@ func (server *Server) htmxClientTrack(writer http.ResponseWriter,
 	// This means to remove tracking
 	if toTrack == "false" {
 		_, err := server.db.Exec(
-			`DELETE FROM Watch
+			`DELETE FROM Track
             WHERE to_id = $1
 				AND client_id = $2
 			`, to.Id, clientId)
@@ -150,7 +150,7 @@ func (server *Server) htmxClientTrack(writer http.ResponseWriter,
 
 	_, err := server.db.Exec(
 		`INSERT OR IGNORE
-        INTO Watch (to_id, client_id)
+        INTO Track (to_id, client_id)
         VALUES ($1, $2)`, to.Id, clientId)
 	if err != nil {
 		log.Println("htmxClientTrack() - db insert")

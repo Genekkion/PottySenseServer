@@ -29,7 +29,7 @@ func InitServer(dbStorage *sql.DB,
 	redisSessionStore *redistore.RediStore,
 	redisStorage *redis.Client) *Server {
 
-	listenAddr := ":" + os.Getenv("PORT")
+	listenAddr := os.Getenv("SERVER_ADDR")
 	telebotAddr := "https://api.telegram.org/bot" +
 		os.Getenv("TELEGRAM_BOT_TOKEN") + "/sendMessage"
 
@@ -47,7 +47,7 @@ func InitServer(dbStorage *sql.DB,
 	server.addInternalRoutes()
 	server.addExternalRoutes()
 
-	log.Printf("Server running on: http://localhost%s\n", server.listenAddr)
+	log.Printf("Server running on: http://%s\n", server.listenAddr)
 	return server
 }
 
@@ -156,12 +156,13 @@ func (server *Server) sendTeleTemplate(chatId string,
 }
 
 // Sends telegram message to a specified chatId
-func (server *Server) sendTeleString(chatId string, message string) error {
+func (server *Server) sendTeleString(chatId string, message string, isSilent bool) error {
 	body, err := json.Marshal(
-		map[string]string{
-			"chat_id":    chatId,
-			"text":       message,
-			"parse_mode": "HTML",
+		map[string]interface{}{
+			"chat_id":              chatId,
+			"text":                 message,
+			"parse_mode":           "HTML",
+			"disable_notification": isSilent,
 		},
 	)
 	if err != nil {

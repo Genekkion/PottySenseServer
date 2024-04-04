@@ -20,8 +20,8 @@ CREATE TABLE Clients (
     last_record DATETIME NOT NULL DEFAULT current_timestamp
 );
 
-DROP TABLE IF EXISTS Watch;
-CREATE TABLE Watch (
+DROP TABLE IF EXISTS Track;
+CREATE TABLE Track (
     to_id  INTEGER,
     client_id INTEGER,
     FOREIGN KEY (to_id) REFERENCES TOfficers (id),
@@ -29,4 +29,18 @@ CREATE TABLE Watch (
     UNIQUE (to_id, client_id)
 );
 
+DROP TABLE IF EXISTS ToiletEntries;
+CREATE TABLE ToiletEntries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER,
+    business_type TEXT NOT NULL,
+    duration INTEGER NOT NULL,
+    FOREIGN KEY (client_id) REFERENCES Clients (id)
+)
 
+DROP TABLE IF EXISTS Toilets;
+CREATE TABLE Toilets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    location TEXT NOT NULL
+);
