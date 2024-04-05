@@ -124,7 +124,7 @@ def create_app() -> Quart:
 
     # Constants
     app.config[SECRET_HEADER] = secret_header
-    app.config[SERVER_ADDR] = "http://" + server_addr
+    app.config[SERVER_ADDR] = "https://" + server_addr
     app.config[HEADER_CONFIG] = {
         "Content-Type": "application/json",
         "X-PS-Header": secret_header,
