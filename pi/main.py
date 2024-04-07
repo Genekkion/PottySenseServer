@@ -158,7 +158,8 @@ async def send_tele_message(
             json=data,
             headers=app.config[HEADER_CONFIG],
         )
-        print(response.read(), response.status_code)  # print response status code
+        # print response status code
+        print(response.read(), response.status_code)
         return response.status_code
 
 
@@ -415,7 +416,13 @@ async def int_handler_get():
 
     app.config[TIMER] = asyncio.create_task(
         start_timer_2(
-            app.config[TIME_URINATION],
+            app.config[
+                (
+                    TIME_URINATION
+                    if app.config[BUSINESS_TYPE] == "urination"
+                    else TIME_DEFECATION
+                )
+            ],
             app.config[BUSINESS_TYPE],
         )
     )
@@ -452,6 +459,77 @@ async def int_handler_post():
         jsonify(
             {
                 "message": "Timer 3 started.",
+            }
+        ),
+        HTTP_STATUS_OK,
+    )
+
+
+@auth_wrapper
+@app.put("/int")
+async def int_handler_put():
+    # For the controllers to update this server
+    # of the type of business
+
+    if not request.is_json or await request.get_json() is None:
+        return (
+            jsonify(
+                {
+                    "error": "Mismatched form type.",
+                }
+            ),
+            HTTP_STATUS_BAD_REQUEST,
+        )
+
+    try:
+        data = await request.get_json()
+        json_business_type = data.get("businessType")
+        if json_business_type is None:
+            return (
+                jsonify(
+                    {
+                        "error": "Missing businessType in form data.",
+                    }
+                ),
+                HTTP_STATUS_BAD_REQUEST,
+            )
+
+        app.config[BUSINESS_TYPE] = json_business_type
+
+    except ValueError:
+        return (
+            jsonify(
+                {
+                    "error": "clientId, urination and defecation should be integers.",
+                }
+            ),
+            HTTP_STATUS_BAD_REQUEST,
+        )
+
+    # timer_1 is reset since there is client has entered
+    if app.config[TIMER] is not None and not app.config[TIMER].done():
+        app.config[TIMER].cancel()
+
+    time_elapsed: float = time.time() - app.config[TIMESTAMP_2]
+
+    app.config[TIMER] = asyncio.create_task(
+        start_timer_2(
+            app.config[
+                (
+                    TIME_URINATION
+                    if app.config[BUSINESS_TYPE] == "urination"
+                    else TIME_DEFECATION
+                )
+            ]
+            - time_elapsed,
+            app.config[BUSINESS_TYPE],
+        )
+    )
+
+    return (
+        jsonify(
+            {
+                "message": "Business type updated.",
             }
         ),
         HTTP_STATUS_OK,

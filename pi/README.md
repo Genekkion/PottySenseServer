@@ -190,8 +190,31 @@ The following routes are only to be called by the devices within the toilet.
         {
             "message": "Timer 3 started."
         }
+
+3. **Client finish toileting**
+    - **Route:** `/int`
+    - **Method:** `PUT`
+    - **Header** `X-PS-Header`
+    - **Body:** `application/json`
+        ```json
+        {
+            "businessType": ""
+        }
+        ```
         
-3. **Client left toilet**
+        `businessType` is the type of toileting business. Accepts either `urination` or `defecation`
+
+
+    - **Expected output:**
+
+        Status code: `200`
+
+        ```json
+        {
+            "message": "Business type updated."
+        }
+
+4. **Client left toilet**
     - **Route:** `/int`
     - **Method:** `DELETE`
     - **Header** `X-PS-Header`
