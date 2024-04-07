@@ -6,7 +6,7 @@ PottySense is a system which features automated tracking of toileting activities
 The server portion consists of two parts, the web server which serves both the frontend and backend functionality, as well as a Telegram bot for ease of use.
 
 ## Run
-The respective services are able to run individually in their respective folders, but both reference the `.env` file found at the root folder of the project. Additionally, an sqlite3 database and redis cache is required.
+The respective services are able to run individually in their respective folders, but both reference the `.env` file found at the root folder of the project. Additionally, an SQLite3 database and redis cache is required.
 
 The project is also available via Docker and the instructions to use the Docker version is as follows:
 
