@@ -28,18 +28,18 @@ pip install -r requirements.txt
 
 2. **Create .env file**
 
-Copy `.env.example` to a new file named `.env`.
+Copy `../.env.example` to a new file named `../.env`.
 
 ```bash
-cp .env.example .env
+cp ../.env.example ../.env
 ```
 
-Update `.env` with the required environment variables.
+Update `../.env` with the required environment variables.
 
 3. **Start the server**
 
 ```bash
-flask --app main run
+python main.py
 ```
 
 Upon start up of the server, do look out for the first few messages which indicates errors in the `.env` config or for connection issues. Please rectify any connectivity issues before continuing to use this software.
