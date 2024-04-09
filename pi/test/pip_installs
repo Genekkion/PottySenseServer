@@ -1,0 +1,3 @@
+pip install pygame
+pip install bleak
+pip install pyserial

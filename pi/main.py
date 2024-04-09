@@ -5,6 +5,8 @@ from quart import Quart, request, jsonify
 import os
 from dotenv import load_dotenv
 import httpx
+import multiprocessing as mp, datetime
+import toilet_functions as toilet
 
 load_dotenv(dotenv_path="../.env")
 
@@ -39,6 +41,14 @@ PHASE: str = "phase"
 # Special constants
 HEADER_NAME: str = "X-PS-Header"
 
+running_processes = []
+
+def clear_processes():
+    global running_processes
+    if len(running_processes) > 0:
+        for p in running_processes:
+            p.terminate()
+        running_processes = []
 
 """
 In total there will be 3 timers started by this server
@@ -170,6 +180,7 @@ async def start_timer_1(duration: int):
     try:
         await asyncio.sleep(duration)
         print("timer 1 time up")
+        clear_processes()
         return (
             await send_tele_message(
                 "Client "
@@ -195,6 +206,7 @@ async def start_timer_2(duration: int, business_type: str):
         print("timer 2 cancelled")
         return False
     print("timer 2 time up")
+    clear_processes()
     return (
         await send_tele_message(
             "Client "
@@ -219,6 +231,7 @@ async def start_timer_3(duration: int):
         print("timer 3 cancelled")
         return False
     print("timer 3 time up")
+    clear_processes()
     return (
         await send_tele_message(
             "Client "
@@ -368,6 +381,13 @@ async def api_handler_post():
     # START NEW TIMER
     if app.config[TIMER] is not None and not app.config[TIMER].done():
         app.config[TIMER].cancel()
+
+    clear_processes()
+    print(running_processes)
+    p1 = mp.Process(target=toilet.run) 
+    running_processes.append(p1)
+    p1.start()
+
     app.config[TIMER] = asyncio.create_task(
         start_timer_1(int(app.config[TIMER_1_THRESHOLD]))
     )
@@ -390,7 +410,7 @@ async def api_handler_delete():
     # parameters
     if app.config[TIMER] is not None and not app.config[TIMER].done():
         app.config[TIMER].cancel()
-
+    clear_processes()
     reset_config(app.config)
 
     return (
