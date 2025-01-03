@@ -108,7 +108,7 @@ async def handle_ml():
                     print("washing detected")
                     DETECTION = "washing"
             
-            if DETECTION == "pee" and BUSINESS == "":
+            if DETECTION == "pee" and BUSINESS == "" and not FLUSHED:
                 BUSINESS = "pee"
 
                 async with httpx.AsyncClient() as httpClient:
@@ -124,7 +124,7 @@ async def handle_ml():
                     
                     print(response.read(), response.status_code)
 
-            elif DETECTION == "poo" and BUSINESS != "poo":
+            elif DETECTION == "poo" and BUSINESS != "poo" and not FLUSHED:
                 BUSINESS = "poo"
 
                 async with httpx.AsyncClient() as httpClient:
@@ -211,10 +211,12 @@ async def find_ges_ble():
                 print(f"Found {device_name} at address {address}")
                 # Connect to the device using its address
                 
-                client = BleakClient(address)
-                try:
-                    await asyncio.wait_for(client.connect(), timeout=10)
-                    if client.is_connected():
+                # client = BleakClient(address)
+                # try:
+                #     await asyncio.wait_for(client.connect(), timeout=10)
+                #     if client.is_connected():
+                async with BleakClient(address) as client:
+                    try:
                         print(f"Connected: {client.address} {client.is_connected}")
 
                         def notification_handler(sender, data):
@@ -251,8 +253,8 @@ async def find_ges_ble():
                             await client.stop_notify(GESTURE_CHARACTERISTIC_UUID)
                         await client.disconnect()
 
-                except:
-                    print("bopes")
+                    except:
+                        print("bopes")
     except:
         print("Error in find_ges_ble() function. Exiting...")
 
